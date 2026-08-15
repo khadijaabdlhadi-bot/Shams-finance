@@ -1,0 +1,60 @@
+# ============================================================
+#  المنظومة المالية — مدرسة شمس الوطن
+#  خدمتان فقط: قاعدة البيانات + التطبيق.
+#  التشغيل:  docker compose up -d
+# ============================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: shams-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-shams}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?يجب ضبط DB_PASSWORD في ملف .env}
+      POSTGRES_DB: ${DB_NAME:-shams_finance}
+      TZ: ${TZ:-Africa/Tripoli}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # لا ننشر منفذ قاعدة البيانات على الشبكة: أجهزة الموظفين تتعامل مع التطبيق فقط.
+    # لو احتجت الاتصال بها من نفس الجهاز فقط، أزل التعليق عن السطرين التاليين:
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-shams} -d ${DB_NAME:-shams_finance}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: shams-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${DB_USER:-shams}:${DB_PASSWORD}@db:5432/${DB_NAME:-shams_finance}
+      JWT_SECRET: ${JWT_SECRET:?يجب ضبط JWT_SECRET في ملف .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@2026}
+      TZ: ${TZ:-Africa/Tripoli}
+      DATA_DIR: /data
+      AUTO_BACKUP: ${AUTO_BACKUP:-daily}
+      AUTO_BACKUP_HOUR: ${AUTO_BACKUP_HOUR:-2}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      CHROMIUM_PATH: /usr/bin/chromium
+    volumes:
+      # كل ما يجب أن يبقى بعد إعادة التشغيل أو تحديث النظام
+      - app-data:/data
+    ports:
+      # هذا هو المنفذ الوحيد المفتوح لبقية أجهزة المدرسة
+      - "${PORT:-8080}:8080"
+
+volumes:
+  db-data:
+  app-data:
