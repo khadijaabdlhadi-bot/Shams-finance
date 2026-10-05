@@ -123,6 +123,7 @@ button.blue{background:var(--blue);border-color:var(--blue);color:#fff}
           <button id="tLabels" aria-pressed="true">الأسماء</button>
           <button id="tPeri" aria-pressed="false">غشاء التامور</button>
           <button id="tCor" aria-pressed="true">الشرايين التاجية</button>
+          <button id="tCol" aria-pressed="false">ألوان الكتاب</button>
           <button id="tSound" aria-pressed="false">صوت النبض</button>
           <button id="tView">إعادة المنظر</button>
         </div>
@@ -253,55 +254,130 @@ const world=new THREE.Group();scene.add(world);
 const heart=new THREE.Group();world.add(heart);heart.position.y=-.75;
 const clip=new THREE.Plane(new THREE.Vector3(0,0,-1),50),clipLocal=new THREE.Plane();const CLIPS3=[clip];
 
-/* chambers: center, radii, in-plane tilt, inner ratio (wall thickness) */
-const CH={
- ra:{c:[-1.45,.85,.15],r:[.95,.95,.85],rot:.2,inner:.8,col:0x8f2a33,atr:1},
- la:{c:[.8,1.08,-.35],r:[1.0,.72,.9],rot:-.15,inner:.78,col:0x8c2830,atr:1},
- rv:{c:[-.55,-.55,.35],r:[1.1,1.35,.85],rot:.55,inner:.7,col:0x7c1e24,atr:0},
- lv:{c:[1.0,-.75,0],r:[1.05,1.7,1.05],rot:.5,inner:.58,col:0x731b20,atr:0}
+/* ===== anatomical shell: chamber volumes blended into one organic surface ===== */
+const COMP={
+ lv:{c:[.95,-.7,-.05],r:[1.15,1.85,1.15],rot:.5,taper:.45,inner:.55,t:'v',m:'lv'},
+ rv:{c:[-.6,-.45,.45],r:[1.15,1.45,.9],rot:.55,taper:.25,inner:.66,t:'v',m:'rv'},
+ ra:{c:[-1.5,.85,.1],r:[.95,1.0,.9],rot:.2,taper:0,inner:.78,t:'a',m:'ra'},
+ la:{c:[.75,1.15,-.55],r:[1.05,.75,.95],rot:-.15,taper:0,inner:.78,t:'a',m:'la'},
+ rvo:{c:[-.3,.35,.6],r:[.45,.55,.42],rot:-.2,taper:0,t:'v',m:'rv'},
+ aor:{c:[.35,.45,.05],r:[.42,.45,.42],rot:0,taper:0,t:'v',m:'lv'},
+ rau:{c:[-.95,1.45,.72],r:[.58,.3,.36],rot:-.6,taper:0,t:'a',m:'ra'},
+ lau:{c:[1.5,1.15,.42],r:[.5,.27,.32],rot:.55,taper:0,t:'a',m:'la'}
 };
-function organic(seed){const g=new THREE.SphereGeometry(1,72,54),p=g.attributes.position,v=new THREE.Vector3();
-  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);const n=1+.022*Math.sin(v.x*5+seed)*Math.sin(v.y*4.3+seed*2)+.015*Math.sin(v.z*6+v.y*3+seed);v.multiplyScalar(n);p.setXYZ(i,v.x,v.y,v.z);}g.computeVertexNormals();return g;}
+const CH={ra:COMP.ra,la:COMP.la,rv:COMP.rv,lv:COMP.lv};
+const CK=Object.keys(COMP),CMAIN=['ra','rv','la','lv'],PID={ra:0,rv:1,la:2,lv:3};
+function sdE(d,x,y,z){const dx=x-d.c[0],dy=y-d.c[1],dz=z-d.c[2],c=Math.cos(-d.rot),s=Math.sin(-d.rot);const lx=dx*c-dy*s,ly=dx*s+dy*c;
+  let rx=d.r[0],ry=d.r[1],rz=d.r[2];if(d.taper&&ly<0){const t=1-d.taper*Math.min(1,-ly/ry);rx*=t;rz*=t;}
+  const k0=Math.hypot(lx/rx,ly/ry,dz/rz),k1=Math.hypot(lx/(rx*rx),ly/(ry*ry),dz/(rz*rz));return k1>0?k0*(k0-1)/k1:-Math.min(rx,ry,rz);}
+const smin=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k*.25;};
+const nz3=(x,y,z)=>Math.sin(x*3.1+Math.sin(y*2.7+z*1.3))*Math.sin(y*3.7+Math.sin(z*2.9+x*1.1))*Math.sin(z*3.3+Math.sin(x*2.3));
+function F(x,y,z){let d=sdE(COMP.lv,x,y,z);for(let i=1;i<CK.length;i++)d=smin(d,sdE(COMP[CK[i]],x,y,z),.32);return d+.016*nz3(x*1.7,y*1.7,z*1.7)+.006*nz3(x*6,y*6,z*6);}
+function dists(x,y,z){const o={};for(const k of CK)o[k]=sdE(COMP[k],x,y,z);return o;}
+const gradF=(x,y,z,e=.008)=>new THREE.Vector3(F(x+e,y,z)-F(x-e,y,z),F(x,y+e,z)-F(x,y-e,z),F(x,y,z+e)-F(x,y,z-e)).normalize();
+const insideAny=(x,y,z)=>F(x,y,z)<0;
+function front(x,y,off=.04){for(let z=2.8;z>-2.8;z-=.02)if(F(x,y,z)<0){let a=z,b=z+.02;for(let i=0;i<8;i++){const m=(a+b)/2;F(x,y,m)<0?a=m:b=m;}return new THREE.Vector3(x,y,a).addScaledVector(gradF(x,y,a),off);}return new THREE.Vector3(x,y,0);}
+function back(x,y,off=.04){for(let z=-2.8;z<2.8;z+=.02)if(F(x,y,z)<0){let a=z,b=z-.02;for(let i=0;i<8;i++){const m=(a+b)/2;F(x,y,m)<0?a=m:b=m;}return new THREE.Vector3(x,y,a).addScaledVector(gradF(x,y,a),off);}return new THREE.Vector3(x,y,0);}
+function toSurf(p,off){for(let i=0;i<6;i++){const f=F(p.x,p.y,p.z);p.addScaledVector(gradF(p.x,p.y,p.z),-f);}return p.addScaledVector(gradF(p.x,p.y,p.z),off);}
+
+/* beat: vertices shrink toward their chamber centre, driven by uniforms */
+const beatU={uAtr:{value:0},uVen:{value:0},uSel:{value:-1}};
+function beatify(mat,sel){mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,beatU);
+  sh.vertexShader='attribute vec2 aw;attribute vec3 ac;attribute float ap;varying float vPart;uniform float uAtr;uniform float uVen;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvPart=ap;float bs=1.0-0.06*uAtr*aw.x-0.07*uVen*aw.y;transformed=ac+(transformed-ac)*bs;');
+  sh.fragmentShader='varying float vPart;uniform float uSel;\n'+sh.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n'+(sel?'if(uSel>-.5&&abs(vPart-uSel)<.5)totalEmissiveRadiance+=vec3(.42,.2,.0);':''));};return mat;}
+function beatAttrs(geo){const p=geo.attributes.position,n=p.count,aw=new Float32Array(n*2),ac=new Float32Array(n*3),ap=new Float32Array(n);
+  for(let i=0;i<n;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),d=dists(x,y,z);
+    let wa=0,wv=0,ca=[0,0,0],cv=[0,0,0],da=1e9,dv=1e9,best=null,bd=1e9;
+    for(const k of CK){const c=COMP[k],w=Math.exp(-Math.max(0,d[k])/.18);if(c.t==='a'){wa+=w;ca=ca.map((v,j)=>v+c.c[j]*w);da=Math.min(da,d[k]);}else{wv+=w;cv=cv.map((v,j)=>v+c.c[j]*w);dv=Math.min(dv,d[k]);}
+      if(d[k]<bd){bd=d[k];best=c.m;}}
+    const A=1/(1+Math.exp((da-dv)/.12));aw[i*2]=A;aw[i*2+1]=1-A;
+    for(let j=0;j<3;j++)ac[i*3+j]=A*(ca[j]/Math.max(wa,1e-6))+(1-A)*(cv[j]/Math.max(wv,1e-6));ap[i]=PID[best];}
+  geo.setAttribute('aw',new THREE.BufferAttribute(aw,2));geo.setAttribute('ac',new THREE.BufferAttribute(ac,3));geo.setAttribute('ap',new THREE.BufferAttribute(ap,1));}
+
+/* surface nets mesher */
+function buildShell(){const st=.058,b0=[-3.0,-3.5,-2.15],nx=Math.ceil(6.2/st),ny=Math.ceil(6.1/st),nz=Math.ceil(4.3/st);
+  const Vv=new Float32Array(nx*ny*nz);for(let k=0;k<nz;k++)for(let j=0;j<ny;j++)for(let i=0;i<nx;i++)Vv[i+nx*(j+ny*k)]=F(b0[0]+i*st,b0[1]+j*st,b0[2]+k*st);
+  const at=(i,j,k)=>Vv[i+nx*(j+ny*k)];const vid=new Int32Array(nx*ny*nz).fill(-1);const pos=[];
+  const co=[[0,0,0],[1,0,0],[0,1,0],[1,1,0],[0,0,1],[1,0,1],[0,1,1],[1,1,1]],E=[[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]],g=new Float32Array(8);
+  for(let k=0;k<nz-1;k++)for(let j=0;j<ny-1;j++)for(let i=0;i<nx-1;i++){let m=0;for(let c=0;c<8;c++){g[c]=at(i+co[c][0],j+co[c][1],k+co[c][2]);if(g[c]<0)m|=1<<c;}
+    if(m===0||m===255)continue;let sx=0,sy=0,sz=0,cn=0;
+    for(const[a,b]of E){if((g[a]<0)!==(g[b]<0)){const t=g[a]/(g[a]-g[b]);sx+=co[a][0]+(co[b][0]-co[a][0])*t;sy+=co[a][1]+(co[b][1]-co[a][1])*t;sz+=co[a][2]+(co[b][2]-co[a][2])*t;cn++;}}
+    vid[i+nx*(j+ny*k)]=pos.length/3;pos.push(b0[0]+(i+sx/cn)*st,b0[1]+(j+sy/cn)*st,b0[2]+(k+sz/cn)*st);}
+  const idx=[],cell=(i,j,k)=>vid[i+nx*(j+ny*k)];
+  const quad=(a,b,c,d,flip)=>{if(a<0||b<0||c<0||d<0)return;flip?idx.push(a,c,b,a,d,c):idx.push(a,b,c,a,c,d);};
+  for(let k=1;k<nz-1;k++)for(let j=1;j<ny-1;j++)for(let i=1;i<nx-1;i++){const v0=at(i,j,k)<0;
+    if(v0!==(at(i+1,j,k)<0))quad(cell(i,j,k),cell(i,j-1,k),cell(i,j-1,k-1),cell(i,j,k-1),v0);
+    if(v0!==(at(i,j+1,k)<0))quad(cell(i,j,k),cell(i,j,k-1),cell(i-1,j,k-1),cell(i-1,j,k),v0);
+    if(v0!==(at(i,j,k+1)<0))quad(cell(i,j,k),cell(i-1,j,k),cell(i-1,j-1,k),cell(i,j-1,k),v0);}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setIndex(idx);
+  // orient outward: compare first face with the field gradient
+  const P=geo.attributes.position,a=new THREE.Vector3().fromBufferAttribute(P,idx[0]),b=new THREE.Vector3().fromBufferAttribute(P,idx[1]),c=new THREE.Vector3().fromBufferAttribute(P,idx[2]);
+  const fn=b.clone().sub(a).cross(c.clone().sub(a));if(fn.dot(gradF(a.x,a.y,a.z))<0){for(let i=0;i<idx.length;i+=3){const t=idx[i+1];idx[i+1]=idx[i+2];idx[i+2]=t;}geo.setIndex(idx);}
+  const nrm=new Float32Array(P.count*3),col=new Float32Array(P.count*3);
+  const mus1=new THREE.Color(0x4f0f13),mus2=new THREE.Color(0x86231f),atr=new THREE.Color(0x5e1726),fatC=new THREE.Color(0xe2bf62),fat2=new THREE.Color(0xf0d590),tmp=new THREE.Color();
+  for(let i=0;i<P.count;i++){const x=P.getX(i),y=P.getY(i),z=P.getZ(i),gv=gradF(x,y,z);nrm.set([gv.x,gv.y,gv.z],i*3);
+    const d=dists(x,y,z),dA=Math.min(d.ra,d.la,d.rau,d.lau),dV=Math.min(d.lv,d.rv,d.rvo,d.aor);
+    const n1=nz3(x*2.2,y*2.2,z*2.2),n2=nz3(x*7,y*7,z*7);
+    tmp.copy(mus1).lerp(mus2,.5+.35*n1+.15*n2);if(dA<dV)tmp.lerp(atr,.55);
+    const gAV=Math.exp(-(((dA-dV)/.27)**2)),gIV=Math.exp(-(((d.lv-Math.min(d.rv,d.rvo))/.21)**2))*(y<.9?1:.2),gTop=y>.75&&dV<dA+.35?.55:0;
+    let fat=clamp(Math.max(gAV*1.15,gIV,gTop)*(.8+.4*n1)+.18*n2,0,1);fat=Math.pow(fat,1.1);
+    tmp.lerp(fatC.clone().lerp(fat2,.5+.5*n2),fat*.95);tmp.convertSRGBToLinear();col.set([tmp.r,tmp.g,tmp.b],i*3);}
+  geo.setAttribute('normal',new THREE.BufferAttribute(nrm,3));geo.setAttribute('color',new THREE.BufferAttribute(col,3));beatAttrs(geo);return geo;}
 const partMeshes={};const pickables=[];
 function reg(m,part){m.userData.part=part;(partMeshes[part]=partMeshes[part]||[]).push(m);pickables.push(m);}
-const muscle=c=>new THREE.MeshPhysicalMaterial({color:c,roughness:.42,metalness:0,clearcoat:.7,clearcoatRoughness:.35,clippingPlanes:CLIPS3,clipShadows:true});
-const chamberObj={};
-Object.entries(CH).forEach(([k,d],i)=>{const g=new THREE.Group();g.position.set(...d.c);g.rotation.z=d.rot;heart.add(g);
-  const geo=organic(i*1.7+.3);
-  const outer=new THREE.Mesh(geo,muscle(d.col));outer.scale.set(...d.r);g.add(outer);reg(outer,k);
-  const inner=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x4a0f14,roughness:.8,side:THREE.BackSide,clippingPlanes:CLIPS3}));inner.scale.set(...d.r);g.add(inner);
-  chamberObj[k]={g,outer,d};});
-// fat in the coronary groove
-const insideAny=(x,y,z)=>Object.values(CH).some(d=>{const dx=x-d.c[0],dy=y-d.c[1],dz=z-d.c[2],c=Math.cos(-d.rot),s=Math.sin(-d.rot),lx=dx*c-dy*s,ly=dx*s+dy*c;return (lx/d.r[0])**2+(ly/d.r[1])**2+(dz/d.r[2])**2<=1;});
-function front(x,y,off=.04){for(let z=3;z>-3;z-=.015)if(insideAny(x,y,z))return new THREE.Vector3(x,y,z+off);return new THREE.Vector3(x,y,0);}
+const shellGeo=buildShell();
+const shellMat=beatify(new THREE.MeshPhysicalMaterial({vertexColors:true,roughness:.36,metalness:0,clearcoat:.85,clearcoatRoughness:.22,sheen:0,clippingPlanes:CLIPS3}),true);
+const shell=new THREE.Mesh(shellGeo,shellMat);heart.add(shell);shell.userData.part='shell';pickables.push(shell);
+const shellIn=new THREE.Mesh(shellGeo,beatify(new THREE.MeshStandardMaterial({color:0x420d12,roughness:.85,side:THREE.BackSide,clippingPlanes:CLIPS3})));heart.add(shellIn);
+function shellPart(p){const d=dists(p.x,p.y,p.z);let best='lv',bd=1e9;for(const k of CK)if(d[k]<bd){bd=d[k];best=COMP[k].m;}return best;}
+
+/* vessels */
 function tube(pts,r,col,part,opts={}){const curve=new THREE.CatmullRomCurve3(pts.map(p=>p.isVector3?p:new THREE.Vector3(...p)));
-  const m=new THREE.Mesh(new THREE.TubeGeometry(curve,opts.seg||64,r,20,false),new THREE.MeshPhysicalMaterial({color:col,roughness:.35,clearcoat:.8,clearcoatRoughness:.3,clippingPlanes:CLIPS3,side:THREE.DoubleSide}));
-  heart.add(m);if(part)reg(m,part);m.userData.curve=curve;
-  if(opts.cap!==false){[0,1].forEach(t=>{const cp=new THREE.Mesh(new THREE.CircleGeometry(r*.92,20),new THREE.MeshStandardMaterial({color:0x3a0c0f,roughness:.9,clippingPlanes:CLIPS3,side:THREE.DoubleSide}));
-    const pt=curve.getPoint(t),tg=curve.getTangent(t);cp.position.copy(pt);cp.lookAt(pt.clone().add(tg));heart.add(cp);if(part)(partMeshes[part]).push(cp);});}
+  const mat=new THREE.MeshPhysicalMaterial({color:col,roughness:.32,clearcoat:.9,clearcoatRoughness:.25,clippingPlanes:CLIPS3,side:THREE.DoubleSide});
+  const m=new THREE.Mesh(new THREE.TubeGeometry(curve,opts.seg||64,r,24,false),mat);heart.add(m);if(part)reg(m,part);m.userData.curve=curve;
+  if(opts.cap!==false){[0,1].forEach(t=>{const cp=new THREE.Mesh(new THREE.RingGeometry(r*.55,r*1.0,24),new THREE.MeshStandardMaterial({color:0x5a2a2a,roughness:.9,clippingPlanes:CLIPS3,side:THREE.DoubleSide}));
+    const hole=new THREE.Mesh(new THREE.CircleGeometry(r*.56,24),new THREE.MeshBasicMaterial({color:0x1a0507,clippingPlanes:CLIPS3,side:THREE.DoubleSide}));
+    const pt=curve.getPoint(t),tg=curve.getTangent(t);[cp,hole].forEach(o=>{o.position.copy(pt);o.lookAt(pt.clone().add(tg));heart.add(o);(partMeshes[part]).push(o);});});}
   return m;}
-const RED=0xa8201f,BLUE=0x2c4fb0;
+const COLS={real:{aorta:0xe7c3b4,pa:0xd8ada4,svc:0x4e3e70,ivc:0x4e3e70,pv:0x9a4a50},book:{aorta:0xb3201f,pa:0x2c4fb0,svc:0x2c4fb0,ivc:0x2c4fb0,pv:0xb3201f}};
 const V={
- aorta:[[.45,.3,0],[.3,1.4,.1],[.35,2.5,0],[.9,3.1,-.5],[1.7,2.8,-1.1],[2.0,1.6,-1.4],[2.0,-.5,-1.5],[2.0,-2.6,-1.5]],
+ aorta:[[.4,.4,.05],[.3,1.4,.1],[.35,2.5,0],[.9,3.1,-.5],[1.7,2.8,-1.1],[2.0,1.6,-1.4],[2.0,-.5,-1.5],[2.0,-2.6,-1.5]],
  bc:[[.55,2.95,-.25],[.3,3.6,-.2],[.1,4.2,-.2]],lcc:[[1.05,3.1,-.6],[1.1,3.8,-.6],[1.1,4.3,-.6]],lsa:[[1.5,2.95,-.95],[1.9,3.6,-1.0],[2.2,4.1,-1.0]],
- pa:[[-.25,.55,.55],[0,1.4,.75],[.4,1.95,.6],[.75,2.15,.25]],lpa:[[.75,2.15,.25],[1.5,2.25,-.2],[2.4,2.1,-.4],[3.0,1.9,-.5]],rpa:[[.75,2.15,.25],[.2,2.2,-.6],[-.8,2.1,-.8],[-2.0,2.0,-.8],[-2.8,1.9,-.8]],
+ pa:[[-.3,.5,.6],[0,1.4,.75],[.4,1.95,.6],[.75,2.15,.25]],lpa:[[.75,2.15,.25],[1.5,2.25,-.2],[2.4,2.1,-.4],[3.0,1.9,-.5]],rpa:[[.75,2.15,.25],[.2,2.2,-.6],[-.8,2.1,-.8],[-2.0,2.0,-.8],[-2.8,1.9,-.8]],
  svc:[[-1.55,4.0,.05],[-1.55,2.6,.1],[-1.5,1.5,.15]],ivc:[[-1.8,-2.7,-.5],[-1.75,-1.0,-.4],[-1.55,.1,-.1]],
- pv1:[[-2.4,1.35,-.9],[-1.2,1.2,-.7],[-.1,1.1,-.55]],pv2:[[-2.4,.75,-.9],[-1.2,.8,-.75],[-.05,.9,-.55]],pv3:[[2.9,1.35,-.8],[2.0,1.25,-.6],[1.5,1.15,-.45]],pv4:[[2.9,.75,-.8],[2.0,.8,-.6],[1.5,.95,-.45]]
+ pv1:[[-2.4,1.35,-.9],[-1.2,1.2,-.75],[-.1,1.15,-.6]],pv2:[[-2.4,.75,-.9],[-1.2,.85,-.8],[-.05,.95,-.6]],pv3:[[2.9,1.35,-.8],[2.0,1.25,-.65],[1.5,1.2,-.55]],pv4:[[2.9,.75,-.8],[2.0,.8,-.65],[1.5,.95,-.55]]
 };
-tube(V.aorta,.36,RED,'aorta',{seg:120});tube(V.bc,.15,RED,'aorta');tube(V.lcc,.12,RED,'aorta');tube(V.lsa,.13,RED,'aorta');
-tube(V.pa,.33,BLUE,'pa');tube(V.lpa,.22,BLUE,'pa');tube(V.rpa,.22,BLUE,'pa');
-tube(V.svc,.3,BLUE,'svc');tube(V.ivc,.32,BLUE,'ivc');
-['pv1','pv2','pv3','pv4'].forEach(k=>tube(V[k],.14,RED,'pv'));
-// coronary arteries + great cardiac vein lie on the front surface
-const corGroup=[];
-const COR={lad:[[.25,.75],[.35,.2],[.45,-.5],[.7,-1.2],[1.05,-1.8],[1.4,-2.1]],rca:[[-.05,.55],[-.6,.4],[-1.1,.05],[-1.5,-.4],[-1.6,-.95]],cx:[[.3,.7],[.85,.55],[1.35,.3],[1.75,-.1]]};
-Object.values(COR).forEach(pts=>{const m=tube(pts.map(([x,y])=>front(x,y,.03)),.055,0xd63b33,'coronary',{cap:false});corGroup.push(m);});
-corGroup.push(tube(COR.lad.slice(1).map(([x,y])=>front(x+.16,y-.04,.025)),.04,0x4b62c8,'coronary',{cap:false}));
-// fat along the AV groove
-const fat=tube([[-1.9,.15],[-1.3,.25],[-.6,.42],[.2,.62],[.9,.6],[1.6,.25],[2.0,-.15]].map(([x,y])=>front(x,y,-.02)),.11,0xe0c27a,'wall',{cap:false});fat.material.roughness=.6;corGroup.push(fat);
+let colorMode='real';const vesselMats=[];
+const vt=(pts,r,k,o)=>{const m=tube(pts,r,COLS.real[k],k,o);vesselMats.push([m.material,k]);return m;};
+vt(V.aorta,.36,'aorta',{seg:120});vt(V.bc,.15,'aorta');vt(V.lcc,.12,'aorta');vt(V.lsa,.13,'aorta');
+vt(V.pa,.33,'pa');vt(V.lpa,.22,'pa');vt(V.rpa,.22,'pa');vt(V.svc,.3,'svc');vt(V.ivc,.32,'ivc');
+['pv1','pv2','pv3','pv4'].forEach(k=>vt(V[k],.14,'pv'));
+function setColors(m){colorMode=m;vesselMats.forEach(([mt,k])=>mt.color.setHex(COLS[m][k]));corMats.forEach(([mt,a])=>mt.color.setHex(a?(m==='real'?0xa01e1e:0xd8262a):(m==='real'?0x47305e:0x2f4fc0)));}
+
+/* coronary tree: traced along the real grooves of the surface */
+function grooveFront(side){const pts=[];for(let y=.85;y>-2.6;y-=.12){let best=null,bv=1e9;for(let x=-.9;x<1.6;x+=.04){const p=side>0?front(x,y,0):back(x,y,0);const d=dists(p.x,p.y,p.z);if(Math.min(d.rv,d.rvo)>.35)continue;const v=Math.abs(d.lv-Math.min(d.rv,d.rvo));if(v<bv){bv=v;best=p;}}if(best)pts.push(best);}return pts;}
+function grooveAV(t0,t1){const pts=[],n=18;for(let i=0;i<=n;i++){const th=t0+(t1-t0)*i/n;let best=null,bv=1e9;
+  for(let y=-.6;y<1.5;y+=.04){let p=null;for(let r=3.2;r>0;r-=.03){const x=.05+Math.cos(th)*r,z=-.05+Math.sin(th)*r;if(F(x,y,z)<0){p=new THREE.Vector3(x,y,z);break;}}if(!p)continue;
+    const d=dists(p.x,p.y,p.z),dA=Math.min(d.ra,d.la),dV=Math.min(d.lv,d.rv);const v=Math.abs(dA-dV)+(y>1.25?1:0);if(v<bv){bv=v;best=p;}}if(best)pts.push(best);}return pts;}
+const smooth=(pts,k=2)=>pts.map((p,i)=>{const a=pts.slice(Math.max(0,i-k),i+k+1);return a.reduce((s,q)=>s.add(q),new THREE.Vector3()).multiplyScalar(1/a.length);});
+function walk(p0,dir,n,stepL){const pts=[p0.clone()];let p=p0.clone(),d=dir.clone().normalize();for(let i=0;i<n;i++){const g=gradF(p.x,p.y,p.z);d.addScaledVector(g,-d.dot(g)).normalize();p=toSurf(p.clone().addScaledVector(d,stepL),.03);pts.push(p);d.y-=.06;d.normalize();}return pts;}
+const corGroup=[],corMats=[];
+function ttube(pts,r0,r1,artery){if(pts.length<3)return;const curve=new THREE.CatmullRomCurve3(pts.map(p=>toSurf(p.clone(),artery?.03:.022)));const seg=Math.max(16,pts.length*5),rad=10;
+  const geo=new THREE.TubeGeometry(curve,seg,1,rad,false),P=geo.attributes.position,v=new THREE.Vector3();
+  for(let i=0;i<=seg;i++){const c=curve.getPointAt(i/seg),r=r0+(r1-r0)*i/seg;for(let j=0;j<=rad;j++){const id=i*(rad+1)+j;v.fromBufferAttribute(P,id).sub(c).multiplyScalar(r).add(c);P.setXYZ(id,v.x,v.y,v.z);}}
+  geo.computeVertexNormals();beatAttrs(geo);const mat=beatify(new THREE.MeshPhysicalMaterial({color:artery?0xa01e1e:0x3e2a58,roughness:.3,clearcoat:.9,clipping:true,clippingPlanes:CLIPS3}));
+  corMats.push([mat,artery]);const m=new THREE.Mesh(geo,mat);heart.add(m);reg(m,'coronary');corGroup.push(m);}
+const LAD=smooth(grooveFront(1),2),PDA=smooth(grooveFront(-1),2),RCA=smooth(grooveAV(1.75,4.5),1),CX=smooth(grooveAV(1.35,-1.35),1);
+ttube(LAD,.065,.028,true);ttube(PDA,.05,.022,true);ttube(RCA,.065,.038,true);ttube(CX,.058,.032,true);
+for(let i=2;i<LAD.length-3;i+=3)ttube(walk(LAD[i],new THREE.Vector3(1,-.55,.15),7,.17),.04,.013,true);
+for(let i=2;i<RCA.length-2;i+=4)ttube(walk(RCA[i],new THREE.Vector3(.15,-1,.1),6,.17),.037,.012,true);
+for(let i=3;i<CX.length-2;i+=4)ttube(walk(CX[i],new THREE.Vector3(.2,-1,0),6,.17),.037,.012,true);
+ttube(LAD.slice(1).map(p=>toSurf(p.clone().add(new THREE.Vector3(.14,-.02,0)),.02)),.035,.02,false);
+ttube(PDA.map(p=>toSurf(p.clone().add(new THREE.Vector3(.12,0,0)),.02)),.03,.018,false);
+
 // pericardium
 const peri=new THREE.Mesh(new THREE.SphereGeometry(1,48,32),new THREE.MeshPhysicalMaterial({color:0xf3dcc0,roughness:.3,transparent:true,opacity:.16,depthWrite:false,clearcoat:1,side:THREE.DoubleSide,clippingPlanes:CLIPS3}));
-peri.scale.set(2.75,2.95,2.0);peri.position.set(.1,-.15,0);peri.visible=false;heart.add(peri);reg(peri,'pericardium');
+peri.scale.set(2.85,3.05,2.1);peri.position.set(.05,-.3,0);peri.visible=false;heart.add(peri);reg(peri,'pericardium');
 
 /* ================= section face (drawn on a canvas at the cut plane) ================= */
 const SC=1024,SPAN=8,OY=.4;
@@ -309,6 +385,7 @@ const sCan=document.createElement('canvas');sCan.width=sCan.height=SC;const sx=s
 const sTex=new THREE.CanvasTexture(sCan);sTex.encoding=THREE.sRGBEncoding;
 const sPlane=new THREE.Mesh(new THREE.PlaneGeometry(SPAN,SPAN),new THREE.MeshBasicMaterial({map:sTex,transparent:true,side:THREE.DoubleSide,depthWrite:true}));
 sPlane.position.set(0,OY,.003);sPlane.visible=false;heart.add(sPlane);
+const mCan=document.createElement('canvas');mCan.width=mCan.height=512;(()=>{const c=mCan.getContext('2d'),im=c.createImageData(512,512);for(let j=0;j<512;j++)for(let i=0;i<512;i++){const x=(i+.5)/512*SPAN-SPAN/2,y=(1-(j+.5)/512)*SPAN-SPAN/2+OY,f=F(x,y,0);if(f<0){const n=nz3(x*4,y*4,0)*.5+.5,m=nz3(x*14,y*9,0)*.5+.5,dd=Math.min(1,-f/.45),o=(j*512+i)*4;im.data[o]=118+45*n+18*m-28*dd;im.data[o+1]=24+12*n+6*m;im.data[o+2]=28+10*n;im.data[o+3]=255;}}c.putImageData(im,0,0);})();
 const X=x=>(x+SPAN/2)/SPAN*SC, Y=y=>(1-(y-OY+SPAN/2)/SPAN)*SC, U=SC/SPAN;
 function secEllipse(d,scale,inner){const k=Math.sqrt(Math.max(0,1-(d.c[2]/d.r[2])**2));const f=(inner?d.inner:1)*k*scale;return {x:d.c[0],y:d.c[1],a:d.r[0]*f,b:d.r[1]*f,rot:d.rot};}
 function pathEl(e){sx.beginPath();sx.ellipse(X(e.x),Y(e.y),e.a*U,e.b*U,-e.rot,0,Math.PI*2);}
@@ -338,11 +415,7 @@ function drawSection(t){
   // vessel walls behind muscle
   Object.entries(CHAN).forEach(([k,pts])=>strokePath(pts,CHW[k],k==='pa'||k==='svc'||k==='ivc'?'#3b2a52':'#6a1c22'));
   // myocardium (union of outer sections)
-  const mg=sx.createRadialGradient(X(.2),Y(.2),40,X(.2),Y(.2),3.4*U);mg.addColorStop(0,'#a8353a');mg.addColorStop(1,'#6e1a1e');
-  sx.fillStyle=mg;Object.keys(CH).forEach(k=>{pathEl(E[k]);sx.fill();});
-  // fibres
-  sx.save();Object.keys(CH).forEach(k=>{pathEl(E[k]);});sx.clip();sx.strokeStyle='rgba(255,180,170,.07)';sx.lineWidth=2;
-  for(let i=0;i<70;i++){const y=-2.6+i*.09;sx.beginPath();sx.moveTo(X(-3),Y(y));sx.bezierCurveTo(X(-1),Y(y+.25),X(1),Y(y-.25),X(3),Y(y+.1));sx.stroke();}sx.restore();
+  {const ms=1-.03*beat.ven;sx.save();sx.translate(X(.3),Y(-.2));sx.scale(ms,ms);sx.translate(-X(.3),-Y(-.2));sx.drawImage(mCan,0,0,SC,SC);sx.restore();}
   // lumens
   Object.entries(CHAN).forEach(([k,pts])=>{const o2=k==='aorta'||k==='pv';strokePath(pts,CHW[k]*.72,o2?'#b8232c':'#2c4fa6');});
   // cavities
@@ -388,14 +461,14 @@ function pickSection(x,y){
   if(Math.hypot(x-SA[0],y-SA[1])<.22)return 'sa';
   for(const p of[...PAP.rv,...PAP.lv])if(Math.hypot(x-p[0],y-(p[1]+.1))<.28)return 'papillary';
   for(const k of['ra','la','rv','lv'])if(insideEl(I[k],x,y))return k;
-  if(Object.values(E).some(e=>insideEl(e,x,y))){if(y<.3&&x>-.1&&x<.75)return 'septum';return 'wall';}
+  if(F(x,y,0)<0){if(y<.3&&x>-.1&&x<.75)return 'septum';return 'wall';}
   const dseg=(pts)=>{let m=9;for(let i=1;i<pts.length;i++){const[a,b]=[pts[i-1],pts[i]];const vx=b[0]-a[0],vy=b[1]-a[1];const t=clamp(((x-a[0])*vx+(y-a[1])*vy)/(vx*vx+vy*vy),0,1);m=Math.min(m,Math.hypot(x-a[0]-vx*t,y-a[1]-vy*t));}return m;};
   for(const[k,pts]of Object.entries(CHAN))if(dseg(pts)<CHW[k]+.05)return k;
   return null;}
 
 /* ================= labels ================= */
 const labelsEl=$('#labels');const LBL={};
-const L3={ra:()=>front(-1.75,.95,.15),rv:()=>front(-.6,-.8,.15),la:()=>new THREE.Vector3(1.1,1.85,-.6),lv:()=>front(1.35,-1.1,.15),aorta:()=>new THREE.Vector3(.95,3.35,-.5),pa:()=>new THREE.Vector3(1.9,2.45,-.2),svc:()=>new THREE.Vector3(-1.55,3.7,.4),ivc:()=>new THREE.Vector3(-1.8,-2.4,-.1),pv:()=>new THREE.Vector3(2.7,1.55,-.7),coronary:()=>front(.55,-.6,.2),pericardium:()=>new THREE.Vector3(-2.2,-1.8,1.4)};
+const L3={ra:()=>front(-1.9,.9,.15),rv:()=>front(-.75,-.8,.15),la:()=>new THREE.Vector3(1.1,1.85,-.6),lv:()=>front(1.55,-1.2,.15),aorta:()=>new THREE.Vector3(.95,3.35,-.5),pa:()=>new THREE.Vector3(1.9,2.45,-.2),svc:()=>new THREE.Vector3(-1.55,3.7,.4),ivc:()=>new THREE.Vector3(-1.8,-2.4,-.1),pv:()=>new THREE.Vector3(2.7,1.55,-.7),coronary:()=>LAD[Math.floor(LAD.length*.55)].clone().add(new THREE.Vector3(0,0,.2)),pericardium:()=>new THREE.Vector3(-2.2,-1.8,1.4)};
 const LS={ra:[-1.45,1.0],rv:[-.75,-.75],la:[.95,1.2],lv:[1.15,-.9],septum:[.42,-.55],tricuspid:[-1.3,.05],mitral:[.95,.3],pulmv:[-.55,.8],aortv:[.75,.75],aorta:[.9,3.1],pa:[1.9,2.25],svc:[-1.55,3.2],ivc:[-1.75,-2.2],pv:[2.5,1.12],sa:[-1.95,1.7],papillary:[-.45,-1.7]};
 Object.keys(P).forEach(k=>{const el=document.createElement('div');el.className='lbl';el.textContent=P[k].ar;labelsEl.appendChild(el);LBL[k]=el;});
 let showLabels=true;
@@ -427,7 +500,7 @@ function pick(e){const r=canvas.getBoundingClientRect();ndc.set((e.clientX-r.lef
   let k=null;
   if(sPlane.visible){const h=ray.intersectObject(sPlane)[0];if(h){const x=(h.uv.x-.5)*SPAN,y=(h.uv.y-.5)*SPAN+OY;k=pickSection(x,y);}}
   if(!k){const hits=ray.intersectObjects(pickables.filter(m=>m.visible&&m.parent.visible),false).filter(h=>{const lp=heart.worldToLocal(h.point.clone());return !sPlane.visible||lp.z<=.01;});
-    if(hits.length)k=hits[0].object.userData.part;}
+    if(hits.length){k=hits[0].object.userData.part;if(k==='shell')k=shellPart(heart.worldToLocal(hits[0].point.clone()));}}
   if(!k)return;
   if(mode==='game')gameAnswer(k);else select(k,true);}
 
@@ -437,7 +510,7 @@ function renderInfo(k){const el=$('#info');if(!k){el.innerHTML=`<h2>المس أ�
   const p=P[k];el.innerHTML=`<h2>${p.ar}</h2><span class="en">${p.en}</span>${p.b!=='n'?`<span class="blood ${p.b}">${BL[p.b]}</span>`:''}<p>${p.t}</p><div class="fact">${p.f}</div>
    <div class="ctrl"><button id="speakPart">استمع</button>${SECTION_ONLY.includes(k)&&mode==='whole'?'<button class="red" id="goSec">اعرضه من الداخل</button>':''}</div>`;
   $('#speakPart').onclick=()=>say(CLIPS['p_'+k]);const g=$('#goSec');if(g)g.onclick=()=>{setMode('section');select(k,true);};}
-function select(k,speak){selected=k;renderInfo(k);renderComps();
+function select(k,speak){selected=k;beatU.uSel.value=PID[k]!==undefined?PID[k]:-1;renderInfo(k);renderComps();
   Object.entries(partMeshes).forEach(([pk,ms])=>ms.forEach(m=>{if(m.material.emissive){m.material.emissive.setHex(pk===k?0x5a2a00:0);m.material.emissiveIntensity=pk===k?1:0;}}));
   if(k==='pericardium'&&!peri.visible){peri.visible=true;$('#tPeri').setAttribute('aria-pressed','true');}
   if(SECTION_ONLY.includes(k)&&mode==='whole'){}
@@ -457,7 +530,7 @@ function setMode(m){mode=m;document.querySelectorAll('#rail button').forEach(b=>
   if(m==='game'){gameSection=false;gameN=0;gameScore=0;setSection(false);camGoal={...front3,th:.25};if(entered)say(CLIPS.h03,()=>{});nextQ();}
   renderMode();renderInfo(selected);}
 function renderMode(){const c=$('#modeCard');
-  if(mode==='whole')c.innerHTML=`<h2>القلب كاملًا</h2><p>دوّر القلب بإصبعك أو بالفأرة لترى الجهة الخلفية. الأحمر يحمل دمًا مؤكسجًا، والأزرق دمًا غير مؤكسج.</p><div class="ctrl"><button class="red" id="mSec">افتح القلب</button></div>`;
+  if(mode==='whole')c.innerHTML=`<h2>القلب كاملًا</h2><p>دوّر القلب بإصبعك أو بالفأرة لترى الجهة الخلفية. الألوان قريبة من القلب الحقيقي: عضلة حمراء داكنة، ودهون صفراء في الأخاديد، وشرايين تاجية متفرعة. زر «ألوان الكتاب» يلوّن الأوعية بالأحمر والأزرق كما في الكتاب.</p><div class="ctrl"><button class="red" id="mSec">افتح القلب</button></div>`;
   if(mode==='section')c.innerHTML=`<h2>التشريح من الداخل</h2><p>قطعنا القلب من الأمام. شاهد الدم الأزرق يدخل الجهة اليمنى، والأحمر يدخل الجهة اليسرى، والصمامات تنفتح وتنغلق. فعّل «حركة بطيئة» لترى الصمامات بوضوح.</p><div class="ctrl"><button id="mWhole">أغلق القلب</button></div>`;
   if(mode==='tour')c.innerHTML=`<h2>رحلة قطرة دم <span class="score">${tourI+1} / ${TOUR.length}</span></h2><p>${TOUR[tourI][1]}</p><div class="ctrl"><button id="tPrev" ${tourI?'':'disabled'}>السابق</button><button class="red" id="tNext">${tourI<TOUR.length-1?'التالي':'من البداية'}</button><button id="tAuto" aria-pressed="${tourAuto}">تشغيل تلقائي</button></div>`;
   if(mode==='game')c.innerHTML=`<h2>أين هذا الجزء؟ <span class="score">${gameScore} / ${gameN}</span></h2><p>${gameN>=10?'انتهت اللعبة! نتيجتك '+gameScore+' من 10.':'المس الجزء المطلوب على القلب.'}</p><div class="ctrl">${gameN>=10?'<button class="red" id="gAgain">العب مرة أخرى</button>':'<button id="gSkip">تخطَّ</button>'}</div>`;
@@ -480,14 +553,14 @@ function gameAnswer(k){if(gameN>=10||gameReveal)return;
   if(k===gameQ){gameScore++;gameN++;gameReveal=k;gameHi=k;say(CLIPS.h04);setTimeout(nextQ,1500);}
   else{gameN++;gameReveal=gameQ;gameHi=gameQ;flash(gameQ);say(CLIPS.h05);setTimeout(nextQ,2600);}
   renderMode();}
-function flash(k){(partMeshes[k]||[]).forEach(m=>{if(m.material.emissive){m.material.emissive.setHex(0x7a5200);m.material.emissiveIntensity=1;setTimeout(()=>{m.material.emissive.setHex(0);},2400);}});}
+function flash(k){if(PID[k]!==undefined){beatU.uSel.value=PID[k];setTimeout(()=>{beatU.uSel.value=-1;},2400);}(partMeshes[k]||[]).forEach(m=>{if(m.material.emissive){m.material.emissive.setHex(0x7a5200);m.material.emissiveIntensity=1;setTimeout(()=>{m.material.emissive.setHex(0);},2400);}});}
 document.querySelectorAll('#rail button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
 
 /* ================= tools ================= */
 let beating=true,slow=false,bpm=72,phase=0;
 const tog=(id,fn)=>{$(id).onclick=e=>{const v=e.currentTarget.getAttribute('aria-pressed')!=='true';e.currentTarget.setAttribute('aria-pressed',v);fn(v);};};
 tog('#tBeat',v=>beating=v);tog('#tSlow',v=>slow=v);tog('#tLabels',v=>showLabels=v);tog('#tPeri',v=>{peri.visible=v;if(v)select('pericardium',true);});
-tog('#tCor',v=>corGroup.forEach(m=>m.visible=v));tog('#tSound',v=>{soundOn=v;if(v&&!ac)try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}});
+tog('#tCol',v=>setColors(v?'book':'real'));tog('#tCor',v=>corGroup.forEach(m=>m.visible=v));tog('#tSound',v=>{soundOn=v;if(v&&!ac)try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}});
 $('#tView').onclick=()=>{camGoal=mode==='whole'||mode==='game'&&!gameSection?{...front3,th:.25}:{th:0,ph:.03,r:13.2};};
 const fmt=n=>Math.round(n).toLocaleString('en-US');
 function setBpm(v){bpm=v;$('#bpmV').textContent=v;$('#perDay').textContent=fmt(v*1440)+' beats/day · '+fmt(v*.07*1440)+' L/day';}
@@ -529,7 +602,7 @@ renderer.setAnimationLoop((now,frame)=>{const dt=Math.min(.05,(now-last)/1000);l
   const p=phase;
   beat.atr=p<.12?Math.sin(p/.12*Math.PI):0;beat.ven=p>=.16&&p<.48?Math.sin((p-.16)/.32*Math.PI):0;beat.sys=p>=.16&&p<.48;beat.p=p;
   if(beating){if(lastP<.16&&p>=.16)thump(70,.9);if(lastP<.48&&p>=.48)thump(95,.6);}lastP=p;
-  Object.entries(chamberObj).forEach(([k,o])=>{const s=1-(o.d.atr?.06*beat.atr:.07*beat.ven);o.g.scale.setScalar(s);});
+  beatU.uAtr.value=beat.atr;beatU.uVen.value=beat.ven;
   if(!renderer.xr.isPresenting){heart.rotation.y=0;}
   // cut animation
   cut=cutGoal<cut?Math.max(cutGoal,cut-dt*.8):Math.min(cutGoal,cut+dt*1.5);
