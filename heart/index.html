@@ -314,19 +314,19 @@ function buildShell(){const st=.058,b0=[-3.0,-3.5,-2.15],nx=Math.ceil(6.2/st),ny
   const P=geo.attributes.position,a=new THREE.Vector3().fromBufferAttribute(P,idx[0]),b=new THREE.Vector3().fromBufferAttribute(P,idx[1]),c=new THREE.Vector3().fromBufferAttribute(P,idx[2]);
   const fn=b.clone().sub(a).cross(c.clone().sub(a));if(fn.dot(gradF(a.x,a.y,a.z))<0){for(let i=0;i<idx.length;i+=3){const t=idx[i+1];idx[i+1]=idx[i+2];idx[i+2]=t;}geo.setIndex(idx);}
   const nrm=new Float32Array(P.count*3),col=new Float32Array(P.count*3);
-  const mus1=new THREE.Color(0x4f0f13),mus2=new THREE.Color(0x86231f),atr=new THREE.Color(0x5e1726),fatC=new THREE.Color(0xe2bf62),fat2=new THREE.Color(0xf0d590),tmp=new THREE.Color();
+  const mus1=new THREE.Color(0x6e3341),mus2=new THREE.Color(0xa86272),atr=new THREE.Color(0x7d3f57),fatC=new THREE.Color(0xe2bf62),fat2=new THREE.Color(0xf0d590),tmp=new THREE.Color();
   for(let i=0;i<P.count;i++){const x=P.getX(i),y=P.getY(i),z=P.getZ(i),gv=gradF(x,y,z);nrm.set([gv.x,gv.y,gv.z],i*3);
     const d=dists(x,y,z),dA=Math.min(d.ra,d.la,d.rau,d.lau),dV=Math.min(d.lv,d.rv,d.rvo,d.aor);
     const n1=nz3(x*2.2,y*2.2,z*2.2),n2=nz3(x*7,y*7,z*7);
     tmp.copy(mus1).lerp(mus2,.5+.35*n1+.15*n2);if(dA<dV)tmp.lerp(atr,.55);
     const gAV=Math.exp(-(((dA-dV)/.27)**2)),gIV=Math.exp(-(((d.lv-Math.min(d.rv,d.rvo))/.21)**2))*(y<.9?1:.2),gTop=y>.75&&dV<dA+.35?.55:0;
     let fat=clamp(Math.max(gAV*1.15,gIV,gTop)*(.8+.4*n1)+.18*n2,0,1);fat=Math.pow(fat,1.1);
-    tmp.lerp(fatC.clone().lerp(fat2,.5+.5*n2),fat*.95);tmp.convertSRGBToLinear();col.set([tmp.r,tmp.g,tmp.b],i*3);}
+    tmp.lerp(fatC.clone().lerp(fat2,.5+.5*n2),fat*.12);tmp.convertSRGBToLinear();col.set([tmp.r,tmp.g,tmp.b],i*3);}
   geo.setAttribute('normal',new THREE.BufferAttribute(nrm,3));geo.setAttribute('color',new THREE.BufferAttribute(col,3));beatAttrs(geo);return geo;}
 const partMeshes={};const pickables=[];
 function reg(m,part){m.userData.part=part;(partMeshes[part]=partMeshes[part]||[]).push(m);pickables.push(m);}
 const shellGeo=buildShell();
-const shellMat=beatify(new THREE.MeshPhysicalMaterial({vertexColors:true,roughness:.36,metalness:0,clearcoat:.85,clearcoatRoughness:.22,sheen:0,clippingPlanes:CLIPS3}),true);
+const shellMat=beatify(new THREE.MeshPhysicalMaterial({vertexColors:true,roughness:.48,metalness:0,clearcoat:.5,clearcoatRoughness:.35,sheen:0,clippingPlanes:CLIPS3}),true);
 const shell=new THREE.Mesh(shellGeo,shellMat);heart.add(shell);shell.userData.part='shell';pickables.push(shell);
 const shellIn=new THREE.Mesh(shellGeo,beatify(new THREE.MeshStandardMaterial({color:0x420d12,roughness:.85,side:THREE.BackSide,clippingPlanes:CLIPS3})));heart.add(shellIn);
 function shellPart(p){const d=dists(p.x,p.y,p.z);let best='lv',bd=1e9;for(const k of CK)if(d[k]<bd){bd=d[k];best=COMP[k].m;}return best;}
@@ -335,11 +335,14 @@ function shellPart(p){const d=dists(p.x,p.y,p.z);let best='lv',bd=1e9;for(const 
 function tube(pts,r,col,part,opts={}){const curve=new THREE.CatmullRomCurve3(pts.map(p=>p.isVector3?p:new THREE.Vector3(...p)));
   const mat=new THREE.MeshPhysicalMaterial({color:col,roughness:.32,clearcoat:.9,clearcoatRoughness:.25,clippingPlanes:CLIPS3,side:THREE.DoubleSide});
   const m=new THREE.Mesh(new THREE.TubeGeometry(curve,opts.seg||64,r,24,false),mat);heart.add(m);if(part)reg(m,part);m.userData.curve=curve;
-  if(opts.cap!==false){[0,1].forEach(t=>{const cp=new THREE.Mesh(new THREE.RingGeometry(r*.55,r*1.0,24),new THREE.MeshStandardMaterial({color:0x5a2a2a,roughness:.9,clippingPlanes:CLIPS3,side:THREE.DoubleSide}));
-    const hole=new THREE.Mesh(new THREE.CircleGeometry(r*.56,24),new THREE.MeshBasicMaterial({color:0x1a0507,clippingPlanes:CLIPS3,side:THREE.DoubleSide}));
-    const pt=curve.getPoint(t),tg=curve.getTangent(t);[cp,hole].forEach(o=>{o.position.copy(pt);o.lookAt(pt.clone().add(tg));heart.add(o);(partMeshes[part]).push(o);});});}
+  (opts.free||[]).forEach(t=>{const pt=curve.getPoint(t),tg=curve.getTangent(t).multiplyScalar(t?1:-1),len=r*1.6;
+    const cm=new THREE.MeshPhysicalMaterial({color:opts.tip,roughness:.35,clearcoat:.9,clearcoatRoughness:.2,clippingPlanes:CLIPS3});
+    const cyl=new THREE.Mesh(new THREE.CylinderGeometry(r*1.04,r*1.04,len,24,1,true),cm),cap=new THREE.Mesh(new THREE.SphereGeometry(r*1.04,24,12,0,Math.PI*2,0,Math.PI/2),cm);
+    const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),tg.clone().normalize());
+    cyl.quaternion.copy(q);cyl.position.copy(pt).addScaledVector(tg.clone().normalize(),len/2-.02);cap.quaternion.copy(q);cap.position.copy(pt).addScaledVector(tg.clone().normalize(),len-.02);
+    [cyl,cap].forEach(o=>{heart.add(o);(partMeshes[part]).push(o);});});
   return m;}
-const COLS={real:{aorta:0xe7c3b4,pa:0xd8ada4,svc:0x4e3e70,ivc:0x4e3e70,pv:0x9a4a50},book:{aorta:0xb3201f,pa:0x2c4fb0,svc:0x2c4fb0,ivc:0x2c4fb0,pv:0xb3201f}};
+const COLS={real:{aorta:0xe0aba2,pa:0xdea79e,svc:0xdca59d,ivc:0xdca59d,pv:0xdea79e},book:{aorta:0xb3201f,pa:0x2c4fb0,svc:0x2c4fb0,ivc:0x2c4fb0,pv:0xb3201f}};
 const V={
  aorta:[[.4,.4,.05],[.3,1.4,.1],[.35,2.5,0],[.9,3.1,-.5],[1.7,2.8,-1.1],[2.0,1.6,-1.4],[2.0,-.5,-1.5],[2.0,-2.6,-1.5]],
  bc:[[.55,2.95,-.25],[.3,3.6,-.2],[.1,4.2,-.2]],lcc:[[1.05,3.1,-.6],[1.1,3.8,-.6],[1.1,4.3,-.6]],lsa:[[1.5,2.95,-.95],[1.9,3.6,-1.0],[2.2,4.1,-1.0]],
@@ -348,11 +351,12 @@ const V={
  pv1:[[-2.4,1.35,-.9],[-1.2,1.2,-.75],[-.1,1.15,-.6]],pv2:[[-2.4,.75,-.9],[-1.2,.85,-.8],[-.05,.95,-.6]],pv3:[[2.9,1.35,-.8],[2.0,1.25,-.65],[1.5,1.2,-.55]],pv4:[[2.9,.75,-.8],[2.0,.8,-.65],[1.5,.95,-.55]]
 };
 let colorMode='real';const vesselMats=[];
-const vt=(pts,r,k,o)=>{const m=tube(pts,r,COLS.real[k],k,o);vesselMats.push([m.material,k]);return m;};
-vt(V.aorta,.36,'aorta',{seg:120});vt(V.bc,.15,'aorta');vt(V.lcc,.12,'aorta');vt(V.lsa,.13,'aorta');
-vt(V.pa,.33,'pa');vt(V.lpa,.22,'pa');vt(V.rpa,.22,'pa');vt(V.svc,.3,'svc');vt(V.ivc,.32,'ivc');
-['pv1','pv2','pv3','pv4'].forEach(k=>vt(V[k],.14,'pv'));
-function setColors(m){colorMode=m;vesselMats.forEach(([mt,k])=>mt.color.setHex(COLS[m][k]));corMats.forEach(([mt,a])=>mt.color.setHex(a?(m==='real'?0xa01e1e:0xd8262a):(m==='real'?0x47305e:0x2f4fc0)));}
+const TIP={aorta:0xd8322f,pv:0xd8322f,pa:0x2f6fd6,svc:0x2f6fd6,ivc:0x2f6fd6};
+const vt=(pts,r,k,o={})=>{o.tip=TIP[k];const m=tube(pts,r,COLS.real[k],k,o);vesselMats.push([m.material,k]);return m;};
+vt(V.aorta,.36,'aorta',{seg:120,free:[1]});vt(V.bc,.15,'aorta',{free:[1]});vt(V.lcc,.12,'aorta',{free:[1]});vt(V.lsa,.13,'aorta',{free:[1]});
+vt(V.pa,.33,'pa');vt(V.lpa,.22,'pa',{free:[1]});vt(V.rpa,.22,'pa',{free:[1]});vt(V.svc,.3,'svc',{free:[0]});vt(V.ivc,.32,'ivc',{free:[0]});
+['pv1','pv2','pv3','pv4'].forEach(k=>vt(V[k],.14,'pv',{free:[0]}));
+function setColors(m){colorMode=m;vesselMats.forEach(([mt,k])=>mt.color.setHex(COLS[m][k]));corMats.forEach(([mt,a])=>mt.color.setHex(a?(m==='real'?0xb3141c:0xd8262a):(m==='real'?0x3f4cb0:0x2f4fc0)));}
 
 /* coronary tree: traced along the real grooves of the surface */
 function grooveFront(side){const pts=[];for(let y=.85;y>-2.6;y-=.12){let best=null,bv=1e9;for(let x=-.9;x<1.6;x+=.04){const p=side>0?front(x,y,0):back(x,y,0);const d=dists(p.x,p.y,p.z);if(Math.min(d.rv,d.rvo)>.35)continue;const v=Math.abs(d.lv-Math.min(d.rv,d.rvo));if(v<bv){bv=v;best=p;}}if(best)pts.push(best);}return pts;}
@@ -360,20 +364,26 @@ function grooveAV(t0,t1){const pts=[],n=18;for(let i=0;i<=n;i++){const th=t0+(t1
   for(let y=-.6;y<1.5;y+=.04){let p=null;for(let r=3.2;r>0;r-=.03){const x=.05+Math.cos(th)*r,z=-.05+Math.sin(th)*r;if(F(x,y,z)<0){p=new THREE.Vector3(x,y,z);break;}}if(!p)continue;
     const d=dists(p.x,p.y,p.z),dA=Math.min(d.ra,d.la),dV=Math.min(d.lv,d.rv);const v=Math.abs(dA-dV)+(y>1.25?1:0);if(v<bv){bv=v;best=p;}}if(best)pts.push(best);}return pts;}
 const smooth=(pts,k=2)=>pts.map((p,i)=>{const a=pts.slice(Math.max(0,i-k),i+k+1);return a.reduce((s,q)=>s.add(q),new THREE.Vector3()).multiplyScalar(1/a.length);});
-function walk(p0,dir,n,stepL){const pts=[p0.clone()];let p=p0.clone(),d=dir.clone().normalize();for(let i=0;i<n;i++){const g=gradF(p.x,p.y,p.z);d.addScaledVector(g,-d.dot(g)).normalize();p=toSurf(p.clone().addScaledVector(d,stepL),.03);pts.push(p);d.y-=.06;d.normalize();}return pts;}
+let seed=7;const rng=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+function walk(p0,dir,n,stepL){const pts=[p0.clone()];let p=p0.clone(),d=dir.clone().normalize();for(let i=0;i<n;i++){const g=gradF(p.x,p.y,p.z);d.addScaledVector(g,-d.dot(g)).normalize();d.add(g.clone().cross(d).multiplyScalar((rng()-.5)*.55)).normalize();p=toSurf(p.clone().addScaledVector(d,stepL),.03);pts.push(p);d.y-=.06;d.normalize();}return pts;}
 const corGroup=[],corMats=[];
 function ttube(pts,r0,r1,artery){if(pts.length<3)return;const curve=new THREE.CatmullRomCurve3(pts.map(p=>toSurf(p.clone(),artery?.03:.022)));const seg=Math.max(16,pts.length*5),rad=10;
   const geo=new THREE.TubeGeometry(curve,seg,1,rad,false),P=geo.attributes.position,v=new THREE.Vector3();
   for(let i=0;i<=seg;i++){const c=curve.getPointAt(i/seg),r=r0+(r1-r0)*i/seg;for(let j=0;j<=rad;j++){const id=i*(rad+1)+j;v.fromBufferAttribute(P,id).sub(c).multiplyScalar(r).add(c);P.setXYZ(id,v.x,v.y,v.z);}}
-  geo.computeVertexNormals();beatAttrs(geo);const mat=beatify(new THREE.MeshPhysicalMaterial({color:artery?0xa01e1e:0x3e2a58,roughness:.3,clearcoat:.9,clipping:true,clippingPlanes:CLIPS3}));
+  geo.computeVertexNormals();beatAttrs(geo);const mat=beatify(new THREE.MeshPhysicalMaterial({color:artery?0xb3141c:0x3f4cb0,emissive:artery?0x3a0004:0x0a0c30,roughness:.3,clearcoat:.9,clipping:true,clippingPlanes:CLIPS3}));
   corMats.push([mat,artery]);const m=new THREE.Mesh(geo,mat);heart.add(m);reg(m,'coronary');corGroup.push(m);}
 const LAD=smooth(grooveFront(1),2),PDA=smooth(grooveFront(-1),2),RCA=smooth(grooveAV(1.75,4.5),1),CX=smooth(grooveAV(1.35,-1.35),1);
-ttube(LAD,.065,.028,true);ttube(PDA,.05,.022,true);ttube(RCA,.065,.038,true);ttube(CX,.058,.032,true);
-for(let i=2;i<LAD.length-3;i+=3)ttube(walk(LAD[i],new THREE.Vector3(1,-.55,.15),7,.17),.04,.013,true);
-for(let i=2;i<RCA.length-2;i+=4)ttube(walk(RCA[i],new THREE.Vector3(.15,-1,.1),6,.17),.037,.012,true);
-for(let i=3;i<CX.length-2;i+=4)ttube(walk(CX[i],new THREE.Vector3(.2,-1,0),6,.17),.037,.012,true);
-ttube(LAD.slice(1).map(p=>toSurf(p.clone().add(new THREE.Vector3(.14,-.02,0)),.02)),.035,.02,false);
-ttube(PDA.map(p=>toSurf(p.clone().add(new THREE.Vector3(.12,0,0)),.02)),.03,.018,false);
+const rotT=(d,n,a)=>d.clone().multiplyScalar(Math.cos(a)).add(n.clone().cross(d).multiplyScalar(Math.sin(a))).add(n.clone().multiplyScalar(n.dot(d)*(1-Math.cos(a))));
+function grow(p0,dir,steps,r0,depth,art){const pts=walk(p0,dir,steps,.15);ttube(pts,r0,r0*.4,art);
+  if(depth>0)for(let i=2;i<pts.length-1;i+=2+Math.floor(rng()*2)){const g=gradF(pts[i].x,pts[i].y,pts[i].z),d=pts[i+1].clone().sub(pts[i]).normalize(),sd=rng()<.5?1:-1;grow(pts[i],rotT(d,g,sd*(.55+rng()*.6)),Math.max(3,steps-2-Math.floor(rng()*3)),r0*.66,depth-1,art);}}
+const offs=(p,dx,dy)=>toSurf(p.clone().add(new THREE.Vector3(dx,dy,0)),.02);
+ttube(LAD,.095,.045,true);ttube(PDA,.075,.035,true);ttube(RCA,.095,.055,true);ttube(CX,.085,.05,true);
+ttube(LAD.slice(1).map(p=>offs(p,.15,-.02)),.06,.03,false);ttube(PDA.map(p=>offs(p,.14,0)),.05,.026,false);ttube(RCA.map(p=>offs(p,0,-.14)),.05,.028,false);ttube(CX.map(p=>offs(p,0,-.14)),.05,.028,false);
+for(let i=1;i<LAD.length-2;i+=2){const lat=(i%4===1);grow(LAD[i],lat?new THREE.Vector3(1,-.45,.1):new THREE.Vector3(-1,-.5,.1),lat?8:6,lat?.06:.048,2,true);if(i%4===3)grow(offs(LAD[i],.14,-.06),new THREE.Vector3(1,-.8,.1),6,.042,1,false);}
+for(let i=1;i<RCA.length-1;i+=3){grow(RCA[i],new THREE.Vector3(.1,-1,.15),8,.058,2,true);if(i%2)grow(offs(RCA[i],.08,-.12),new THREE.Vector3(.35,-1,.1),6,.042,1,false);}
+for(let i=2;i<CX.length-1;i+=3){grow(CX[i],new THREE.Vector3(.2,-1,0),8,.056,2,true);grow(offs(CX[i],.06,-.12),new THREE.Vector3(.4,-1,0),6,.04,1,false);}
+for(let i=1;i<PDA.length-2;i+=3)grow(PDA[i],new THREE.Vector3(1,-.4,0),6,.048,1,true);
+grow(toSurf(new THREE.Vector3(1.45,1.3,.5),.03),new THREE.Vector3(.2,-1,.3),5,.04,1,true);
 
 // pericardium
 const peri=new THREE.Mesh(new THREE.SphereGeometry(1,48,32),new THREE.MeshPhysicalMaterial({color:0xf3dcc0,roughness:.3,transparent:true,opacity:.16,depthWrite:false,clearcoat:1,side:THREE.DoubleSide,clippingPlanes:CLIPS3}));
@@ -530,7 +540,7 @@ function setMode(m){mode=m;document.querySelectorAll('#rail button').forEach(b=>
   if(m==='game'){gameSection=false;gameN=0;gameScore=0;setSection(false);camGoal={...front3,th:.25};if(entered)say(CLIPS.h03,()=>{});nextQ();}
   renderMode();renderInfo(selected);}
 function renderMode(){const c=$('#modeCard');
-  if(mode==='whole')c.innerHTML=`<h2>القلب كاملًا</h2><p>دوّر القلب بإصبعك أو بالفأرة لترى الجهة الخلفية. الألوان قريبة من القلب الحقيقي: عضلة حمراء داكنة، ودهون صفراء في الأخاديد، وشرايين تاجية متفرعة. زر «ألوان الكتاب» يلوّن الأوعية بالأحمر والأزرق كما في الكتاب.</p><div class="ctrl"><button class="red" id="mSec">افتح القلب</button></div>`;
+  if(mode==='whole')c.innerHTML=`<h2>القلب كاملًا</h2><p>دوّر القلب بإصبعك أو بالفأرة لترى الجهة الخلفية. على سطحه شبكة الشرايين التاجية الحمراء والأوردة القلبية الزرقاء. أطراف الأوعية ملوّنة: الأحمر يحمل دمًا مؤكسجًا والأزرق غير مؤكسج. زر «ألوان الكتاب» يلوّن الأوعية بالأحمر والأزرق كما في الكتاب.</p><div class="ctrl"><button class="red" id="mSec">افتح القلب</button></div>`;
   if(mode==='section')c.innerHTML=`<h2>التشريح من الداخل</h2><p>قطعنا القلب من الأمام. شاهد الدم الأزرق يدخل الجهة اليمنى، والأحمر يدخل الجهة اليسرى، والصمامات تنفتح وتنغلق. فعّل «حركة بطيئة» لترى الصمامات بوضوح.</p><div class="ctrl"><button id="mWhole">أغلق القلب</button></div>`;
   if(mode==='tour')c.innerHTML=`<h2>رحلة قطرة دم <span class="score">${tourI+1} / ${TOUR.length}</span></h2><p>${TOUR[tourI][1]}</p><div class="ctrl"><button id="tPrev" ${tourI?'':'disabled'}>السابق</button><button class="red" id="tNext">${tourI<TOUR.length-1?'التالي':'من البداية'}</button><button id="tAuto" aria-pressed="${tourAuto}">تشغيل تلقائي</button></div>`;
   if(mode==='game')c.innerHTML=`<h2>أين هذا الجزء؟ <span class="score">${gameScore} / ${gameN}</span></h2><p>${gameN>=10?'انتهت اللعبة! نتيجتك '+gameScore+' من 10.':'المس الجزء المطلوب على القلب.'}</p><div class="ctrl">${gameN>=10?'<button class="red" id="gAgain">العب مرة أخرى</button>':'<button id="gSkip">تخطَّ</button>'}</div>`;
