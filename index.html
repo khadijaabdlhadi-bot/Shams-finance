@@ -213,19 +213,23 @@ function speakable(t){return t.replace(/(\d+)[.٫](\d+)/g,'$1 فاصلة $2').re
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='voiceSel'){arVoice=voices.find(v=>v.name===e.target.value)||arVoice;try{localStorage.setItem('shams-voice',arVoice.name)}catch(_){}
   const was=voiceOn;voiceOn=true;say('هذا هو الصوت المختار لمختبر شمس الوطن.');voiceOn=was;}});
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice;}
-function say(text){
-  $('#capText').textContent=text;
-  const cap=$('#caption');
-  if(!voiceOn||!entered||!('speechSynthesis' in window)){cap.classList.remove('speaking');return;}
-  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(speakable(text));
-    u.lang=arVoice?arVoice.lang:'ar-SA';if(arVoice)u.voice=arVoice;u.rate=.92;
-    u.onstart=()=>cap.classList.add('speaking');u.onend=u.onerror=()=>cap.classList.remove('speaking');
-    speechSynthesis.speak(u);}catch(e){}
-}
+const CLIPS={"01": "أهلًا بكم في مختبر مدرسة شمس الوطن. هنا تمسكون الأدوات بأيديكم.", "02": "الكاميرا الحرارية: الأزرق بارد، والأخضر دافئ، والأصفر والأحمر حار جدًا. هكذا يرى المهندسون الحرارة.", "03": "عدسة الجزيئات تكبّر المادة ملايين المرات. سخّن المادة وراقب كيف تهتز الجزيئات وتتباعد.", "04": "مبروك! أنهيت محطات مختبر شمس الوطن. اكتب اسمك لتظهر شهادتك.", "10": "المحطة الأولى: الكرة والحلقة. امسك الكرة واسحبها فوق لهب بنزن حتى تسخن وتتوهج، ثم اسحبها فوق الحلقة وأفلتها. بعد ذلك ضعها على الحصيرة لتبرد وجرّب مرة أخرى.", "11": "وضعنا لهبًا تحت الحلقة. فكّر: عندما يتمدد المعدن، هل يكبر الثقب أم يصغر؟", "12": "لاحظ: الكرة تتوهج باللون الأحمر! جزيئاتها تهتز بقوة وتتباعد. افتح عدسة الجزيئات لترى ذلك.", "13": "ممتاز! بعد أن بردت الكرة انكمشت وصغر حجمها، فعادت تمر خلال الحلقة. هذا هو الانكماش.", "14": "اكتشاف رائع! عندما سخنت الحلقة تمددت هي أيضًا، فكبر الثقب معها، فمرت الكرة الساخنة. الثقب يتمدد كأنه مصنوع من المعدن نفسه.", "15": "مرّت الكرة، لأن قطرها أصغر قليلًا من قطر الحلقة.", "16": "توقفت الكرة فوق الحلقة! عندما سخنت تمددت، فأصبح قطرها أكبر من قطر الحلقة. الآن ضعها على الحصيرة لتبرد.", "17": "وضعت الكرة على الحصيرة المقاومة للحرارة. فعّل تسريع الزمن لترى تبريدها أسرع.", "20": "المحطة الثانية: القضيب والمقياس. القضيب طوله مئة مليمتر ويدخل بالضبط بين طرفي المقياس. سخّنه فوق اللهب، ثم أفلته فوق المقياس. وبعدها ضعه على الحصيرة حتى يبرد.", "21": "عاد القضيب إلى المقياس! برد فانكمش وقلّ طوله.", "22": "القضيب البارد يدخل بالضبط. والآن سخّنه وراقب الطول.", "23": "القضيب لم يعد يدخل! زاد طوله قليلًا بسبب التمدد. قد يبدو الفرق صغيرًا، لكنه يكفي.", "30": "المحطة الثالثة: تمدد السوائل. الدورق مملوء بماء ملوّن، وفوقه أنبوب رفيع. اسحب الدورق وضعه في الماء الساخن، وراقب مستوى السائل في الأنبوب جيدًا من اللحظة الأولى. ثم ضعه في الماء المثلج.", "31": "دخل الدورق الماء الساخن. ركّز على الخط الذهبي، ماذا يحدث في الثواني الأولى؟", "32": "الآن في الماء المثلج. راقب السائل في الأنبوب.", "33": "هل رأيت؟ انخفض السائل قليلًا أولًا! لأن الزجاج سخن قبل السائل فتمدد واتسع الدورق. بعد ذلك يسخن السائل ويتمدد أكثر من الزجاج فيرتفع.", "34": "السائل يرتفع في الأنبوب! سخن فتباعدت جزيئاته وزاد حجمه، والأنبوب الرفيع يجعل التغيير الصغير واضحًا. هكذا يعمل ميزان الحرارة.", "35": "في الماء المثلج برد السائل فانكمش، فانخفض تحت الخط الذهبي.", "40": "المحطة الرابعة: تمدد الغازات. الدورق مملوء بالهواء فقط، وعلى فوهته بالون فارغ. ضع الدورق في الماء الساخن وراقب البالون، ثم انقله إلى الماء المثلج.", "41": "سخن الهواء داخل الدورق. جزيئات الغاز تتحرك بسرعة كبيرة وتدفع جدار البالون.", "42": "برد الهواء فانكمش. انظر ماذا يحدث للبالون!", "43": "البالون ينتفخ! الغاز يتمدد أكثر بكثير من السائل والصلب: الحجم زاد بنحو سدس حجمه.", "44": "البالون انسحب إلى داخل الدورق! الهواء البارد انكمش فقلّ حجمه.", "50": "المهمة الخامسة: أنت مهندس سكة حديد في شمس الوطن. طول كل قضيب اثنا عشر مترًا، ويُركَّب في الربيع عند خمس وعشرين درجة. اختر الفراغ بين القضبان، ثم اختبر السكة في صيف حار ستين درجة، وفي شتاء بارد صفر درجة، وشغّل القطار.", "51": "صيف حار: القضبان تحت الشمس تصل إلى ستين درجة فتتمدد.", "52": "شتاء بارد: القضبان تنكمش فيتسع الفراغ.", "53": "خطر! القضبان تمددت ولم تجد مكانًا، فانحنت السكة وتوقف القطار. كبّر الفراغ.", "54": "الفراغ أصبح واسعًا جدًا في البرد، فالقطار يرتطم عند كل فاصل. صغّر الفراغ قليلًا.", "55": "أحسنت يا مهندس! اخترت فراغًا يسمح للقضبان بالتمدد في الصيف، ولا يتسع كثيرًا في الشتاء. هذا ما يفعله مهندسو السكك فعلًا.", "56": "رحلة آمنة! جرّب الآن الفصل الآخر بالفراغ نفسه.", "57": "صحيح! المعدن يتمدد أكثر من الزجاج، فيتسع الغطاء ويُفتح بسهولة.", "58": "لا. في البرد ينكمش الغطاء المعدني ويزداد التصاقًا.", "59": "صحيح! في الشتاء تنكمش الأسلاك، فلو شُدّت في الصيف تمامًا لانقطعت في البرد.", "60": "لا. في الشتاء ستنكمش الأسلاك المشدودة وقد تنقطع.", "70": "أهلًا بكم في مختبر مدرسة شمس الوطن بالواقع المعزز. سنرى كيف تتمدد المواد عند التسخين وتنكمش عند التبريد.", "71": "الكرة فوق لهب بنزن الآن. راقب لونها: ستتوهج بالأحمر عندما تتجاوز أربعمئة درجة.", "72": "الكرة متوهجة! الآن اضغط «مرّرها في الحلقة».", "73": "الكرة لا تمر! تمددت بالحرارة فصار قطرها أكبر من الحلقة. برّدها ثم جرّب مرة أخرى.", "74": "وضعنا الكرة على الحصيرة لتبرد. الزمن هنا مسرَّع: كل ثانية تساوي دقيقة.", "75": "الدوارق فوق السخان. راقب السائل الأحمر في الأنبوب، وراقب البالون البنفسجي. الغاز يتمدد أكثر بكثير من السائل.", "76": "الآن في الثلج. السائل ينكمش وينخفض، والهواء ينكمش فيُسحب البالون إلى الداخل.", "77": "ها هو مختبر شمس الوطن على طاولتك! اقترب بالجوال لترى التفاصيل. ابدأ بتسخين الكرة.", "78": "لم نتمكن من فتح الكاميرا، فشغّلنا المختبر بدون كاميرا. تأكد من السماح للصفحة باستخدام الكاميرا.", "79": "تعذّر بدء الواقع المعزز على هذا الجهاز، فشغّلنا الكاميرا."};const CLIP_OF={};for(const k in CLIPS)CLIP_OF[CLIPS[k]]=k;
+const AUDIO_BASE='audio/';let audioEl=null,speakTok=0;
+function speakingOn(){$('#caption').classList.add('speaking');}function speakingOff(){$('#caption').classList.remove('speaking');}
+function stopVoice(){speakTok++;if(audioEl){try{audioEl.pause()}catch(e){}audioEl=null;}try{speechSynthesis.cancel()}catch(e){}speakingOff();}
+function tts(t,done){if(!('speechSynthesis' in window)){done();return;}
+  try{const u=new SpeechSynthesisUtterance(speakable(t));u.lang=arVoice?arVoice.lang:'ar-SA';if(arVoice)u.voice=arVoice;u.rate=.92;
+    u.onstart=speakingOn;u.onend=u.onerror=done;speechSynthesis.speak(u);}catch(e){done();}}
+function playParts(parts,i,tok){if(tok!==speakTok)return;if(i>=parts.length){speakingOff();return;}
+  const t=parts[i],id=CLIP_OF[t],next=()=>playParts(parts,i+1,tok);
+  if(!id){tts(t,next);return;}
+  const a=new Audio(AUDIO_BASE+id+'.mp3');audioEl=a;let fell=false;const fb=()=>{if(fell||tok!==speakTok)return;fell=true;tts(t,next);};
+  a.onplaying=speakingOn;a.onended=next;a.onerror=fb;const p=a.play();if(p&&p.catch)p.catch(fb);}
+function say(x){const parts=Array.isArray(x)?x:[x];$('#capText').textContent=parts.join(' ');stopVoice();if(!voiceOn||!entered)return;playParts(parts,0,speakTok);}
 const saidOnce=new Set();
 function sayOnce(k,t){if(saidOnce.has(k))return;saidOnce.add(k);say(t);}
 $('#voiceBtn').onclick=e=>{voiceOn=!voiceOn;e.target.setAttribute('aria-pressed',voiceOn);e.target.textContent='الصوت: '+(voiceOn?'يعمل':'متوقف');
-  if(!voiceOn){try{speechSynthesis.cancel()}catch(_){}$('#caption').classList.remove('speaking');}};
+  if(!voiceOn)stopVoice();};
 
 /* ================= sound fx ================= */
 let ac=null, hissGain=null;
@@ -484,7 +488,7 @@ const simRate=()=>fast?3:.5; let fast=false;
       if(st.failed&&P.T<60){star('s2');say('عاد القضيب إلى المقياس! برد فانكمش وقلّ طوله.');}
       else if(!st.triedCold){st.triedCold=true;say('القضيب البارد يدخل بالضبط. والآن سخّنه وراقب الطول.');}}
     else{st.failed=true;clank();log('عند '+T+'°: القضيب لا يتناسب، أطول بـ '+fx(L-GAP,3)+' مم','bad');
-      say('القضيب لم يعد يدخل! زاد طوله بنحو '+fx(L-100,2).replace('.','٫')+' من المليمتر بسبب التمدد. قد يبدو قليلًا، لكنه يكفي.');}
+      say(CLIPS['23']);}
     st.triedCold=true;renderMission();}
   st.release=()=>{const p=rodG.position;
     if(Math.abs(p.x-GX)<.7&&p.y>.3){p.x=GX;const fit=Lof(st.T)<=GAP;st.ty=fit?.13:.33;st.mode='drop';st.vy=0;st.pending={fit,T:st.T};}
@@ -712,7 +716,7 @@ $('#tView').onclick=()=>setView(cur,false);
 $('#tReset').onclick=()=>{cur.reset();saidOnce.clear();renderMission();};
 
 $('#enterBtn').onclick=()=>{entered=true;$('#intro').hidden=true;audioInit();
-  say('أهلًا بكم في مختبر مدرسة شمس الوطن. هنا تمسكون الأدوات بأيديكم. '+cur.intro);};
+  say([CLIPS['01'],cur.intro]);};
 
 /* ================= tutor (sample capability) ================= */
 let sample=null,turns=[],ctl=null;
