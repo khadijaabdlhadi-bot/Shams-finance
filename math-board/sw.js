@@ -1,5 +1,5 @@
 // لوحة شمس الوطن: تشتغل بدون إنترنت بعد أول فتح
-const CACHE = 'shams-math-board-v1';
+const CACHE = 'shams-math-board-v2';
 const BASE = new URL('./', self.location).href;
 const PAGES = [BASE, new URL('index.html', BASE).href];
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable.png', 'icon-apple.png']

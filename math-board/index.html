@@ -100,8 +100,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 #intro .plaque img { width: 400px; }
 @keyframes logoIn { from { transform: scale(.3) rotate(-8deg); opacity: 0; } }
 .title { font-family: var(--display); font-weight: 900; font-size: 104px; line-height: 1; margin: 0;
-  background: linear-gradient(180deg, #fff6d6 10%, var(--gold) 45%, var(--sun) 75%, #c46a0e); -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 6px 0 rgba(90,40,0,.9)) drop-shadow(0 0 40px rgba(243,154,43,.45)); }
+  color: var(--gold); text-shadow: 0 2px 0 #ffe7a6, 0 6px 0 #a85a0c, 0 0 40px rgba(243,154,43,.55); }
 .subtitle { font-size: 32px; font-weight: 700; color: var(--silver); margin: 0; letter-spacing: .5px; }
 .samplenote { margin: 0; font-size: 22px; font-weight: 700; color: var(--muted); background: rgba(255,255,255,.06); padding: 10px 24px; border-radius: 999px; }
 .samplenote b { color: var(--gold); }
@@ -157,7 +156,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
   box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -6px 0 rgba(0,0,0,.25), 0 10px 18px rgba(0,0,0,.4);
   font-family: var(--display); font-weight: 900; font-size: 60px; transition: transform .15s, box-shadow .2s; animation: tileIn .5s cubic-bezier(.2,1.2,.4,1) both; }
 @keyframes tileIn { from { transform: rotateX(90deg); opacity: 0; } }
-.tile .v { background: linear-gradient(180deg, #fff6d6, var(--gold) 50%, var(--sun)); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 0 rgba(0,0,0,.45)); }
+.tile .v { color: var(--gold); text-shadow: 0 3px 0 rgba(0,0,0,.45); }
 .tile::before { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.22), transparent); animation: shine 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
 @keyframes shine { 0%, 80% { left: -60%; } 100% { left: 130%; } }
 .tile:not(:disabled):active { transform: scale(.96); }
@@ -199,7 +198,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 @keyframes stripIn { 0% { transform: scaleY(0); opacity: 0; } 14% { transform: scaleY(1); opacity: 1; } 82% { transform: none; opacity: 1; } 100% { transform: translateX(-120%); opacity: 0; } }
 
 /* ---------- question ---------- */
-#qv { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; background: rgba(3,8,20,.86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; flex-direction: column; padding: 30px 60px 34px; gap: 22px; }
+#qv { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; justify-content: center; background: rgba(3,8,20,.86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; flex-direction: column; padding: 30px 60px 34px; gap: 22px; }
 .qtop { display: flex; align-items: center; gap: 20px; height: 110px; }
 .qtop .chip { font-family: var(--display); font-weight: 900; font-size: 32px; padding: 10px 26px; border-radius: 16px; background: linear-gradient(180deg, #fff, var(--silver) 60%, var(--silver-2)); color: var(--ink); }
 .qtop .val { font-family: var(--display); font-weight: 900; font-size: 40px; padding: 4px 28px; border-radius: 16px; background: linear-gradient(180deg, #ffe7a6, var(--gold), var(--sun)); color: var(--ink); }
@@ -238,7 +237,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 @keyframes shake { 20% { transform: translateX(-14px); } 40% { transform: translateX(14px); } 60% { transform: translateX(-9px); } 80% { transform: translateX(9px); } }
 .openans { text-align: center; font-family: var(--display); font-weight: 800; font-size: 44px; padding: 22px; border-radius: 22px; background: rgba(34,197,94,.18); box-shadow: inset 0 0 0 3px var(--ok); animation: qIn .5s both; }
 .openans small { display: block; font-size: 24px; color: var(--muted); }
-.qbar { margin-top: auto; display: flex; align-items: center; gap: 18px; min-height: 92px; }
+.qbar { margin-top: 20px; display: flex; align-items: center; gap: 18px; min-height: 92px; }
 .qbar .sp { flex: 1; }
 .qbar .msg { font-family: var(--display); font-weight: 900; font-size: 40px; }
 .ll-btn { display: flex; align-items: center; gap: 12px; border: 0; border-radius: 18px; padding: 16px 24px; font: 800 26px var(--display); background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 2px rgba(255,255,255,.2); }
@@ -310,8 +309,80 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .etoast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); z-index: 95; background: var(--gold); color: var(--ink); font: 800 18px var(--display); padding: 10px 22px; border-radius: 999px; }
 @media (max-width: 700px) { .edch { grid-template-columns: minmax(0, 1fr); } }
 
+/* centre the setup/rules content on any stage height */
+.panel-scr { justify-content: center; }
+.panel-scr > .row { margin-top: 34px !important; }
+/* portrait tablets: narrower stage (1000 wide) with stacked layouts */
+.portrait .panel-scr { padding: 50px 46px; }
+.portrait .teams-setup { grid-template-columns: 1fr 1fr; }
+.portrait .settings { flex-direction: column; gap: 20px; }
+.portrait .rules { grid-template-columns: 1fr; gap: 16px; }
+.portrait .rules li { font-size: 27px; }
+.portrait .topbar { padding: 18px 24px 0; gap: 14px; }
+.portrait .topbar .t b { font-size: 32px; }
+.portrait .topbar .t span { display: none; }
+.portrait .progress { min-width: 0; }
+.portrait .progress .bar { width: 170px; }
+.portrait .progress span { font-size: 18px; }
+.portrait .board { padding: 18px 24px 16px; gap: 12px; grid-template-rows: 96px repeat(5, 1fr); }
+.portrait .cat { font-size: 22px; padding: 6px; }
+.portrait .tile { font-size: 56px; }
+.portrait .pods { height: auto; grid-template-columns: 1fr 1fr; gap: 26px 16px; padding: 18px 24px 26px; }
+.portrait .pod { min-height: 110px; }
+.portrait .pod .sc { font-size: 48px; }
+.portrait #qv { padding: 40px 36px; gap: 26px; }
+.portrait .qtop { flex-wrap: wrap; height: auto; gap: 14px; }
+.portrait .qbox { font-size: 48px; padding: 30px; }
+.portrait .ch { font-size: 36px; min-height: 120px; }
+.portrait .qbar { flex-wrap: wrap; gap: 14px; justify-content: center; }
+.portrait .qbar .sp { display: none; }
+.portrait #hintMsg { display: none; }
+.portrait .qbar .msg { width: 100%; text-align: center; font-size: 34px; }
+.portrait .steal { flex-wrap: wrap; justify-content: center; }
+.portrait .podium { gap: 14px; }
+.portrait .pcol { width: 220px; }
+.portrait .menu-box { width: 920px; }
+.portrait .adj { grid-template-columns: 1fr 1fr; }
+.portrait .save-opts { grid-template-columns: 1fr; }
+.portrait #banner .strip b { font-size: 70px; }
 #rotate { position: fixed; top: 12px; right: 12px; left: 12px; z-index: 70; display: none; text-align: center; padding: 10px 14px; border-radius: 14px; background: #ffd36b; color: #0a1226; font: 800 16px var(--display); line-height: 1.6; pointer-events: none; }
-@media (orientation: portrait) and (max-width: 900px) { #rotate { display: block; } }
+@media (orientation: portrait) and (max-width: 600px) { /* centre the setup/rules content on any stage height */
+.panel-scr { justify-content: center; }
+.panel-scr > .row { margin-top: 34px !important; }
+/* portrait tablets: narrower stage (1000 wide) with stacked layouts */
+.portrait .panel-scr { padding: 50px 46px; }
+.portrait .teams-setup { grid-template-columns: 1fr 1fr; }
+.portrait .settings { flex-direction: column; gap: 20px; }
+.portrait .rules { grid-template-columns: 1fr; gap: 16px; }
+.portrait .rules li { font-size: 27px; }
+.portrait .topbar { padding: 18px 24px 0; gap: 14px; }
+.portrait .topbar .t b { font-size: 32px; }
+.portrait .topbar .t span { display: none; }
+.portrait .progress { min-width: 0; }
+.portrait .progress .bar { width: 170px; }
+.portrait .progress span { font-size: 18px; }
+.portrait .board { padding: 18px 24px 16px; gap: 12px; grid-template-rows: 96px repeat(5, 1fr); }
+.portrait .cat { font-size: 22px; padding: 6px; }
+.portrait .tile { font-size: 56px; }
+.portrait .pods { height: auto; grid-template-columns: 1fr 1fr; gap: 26px 16px; padding: 18px 24px 26px; }
+.portrait .pod { min-height: 110px; }
+.portrait .pod .sc { font-size: 48px; }
+.portrait #qv { padding: 40px 36px; gap: 26px; }
+.portrait .qtop { flex-wrap: wrap; height: auto; gap: 14px; }
+.portrait .qbox { font-size: 48px; padding: 30px; }
+.portrait .ch { font-size: 36px; min-height: 120px; }
+.portrait .qbar { flex-wrap: wrap; gap: 14px; justify-content: center; }
+.portrait .qbar .sp { display: none; }
+.portrait #hintMsg { display: none; }
+.portrait .qbar .msg { width: 100%; text-align: center; font-size: 34px; }
+.portrait .steal { flex-wrap: wrap; justify-content: center; }
+.portrait .podium { gap: 14px; }
+.portrait .pcol { width: 220px; }
+.portrait .menu-box { width: 920px; }
+.portrait .adj { grid-template-columns: 1fr 1fr; }
+.portrait .save-opts { grid-template-columns: 1fr; }
+.portrait #banner .strip b { font-size: 70px; }
+#rotate { display: block; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
@@ -470,11 +541,22 @@ var Q = null;   // current question
 
 /* ---------------- stage scaling ---------------- */
 var stage = $("#stage"), SCALE = 1;
+// The stage keeps a 1600x900 design but grows taller (iPad portrait) or wider (wide screens)
+// so the game always fills the screen instead of leaving empty bands.
+var STAGE_W = 1600, STAGE_H = 900;
 function fit() {
-  SCALE = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+  var vw = window.innerWidth || 1600, vh = window.innerHeight || 900;
+  var portrait = vh > vw * 1.05;
+  STAGE_W = portrait ? 1000 : Math.min(2200, Math.max(1600, 900 * vw / vh));
+  STAGE_H = Math.min(2600, Math.max(900, STAGE_W * vh / vw));
+  stage.classList.toggle("portrait", portrait);
+  stage.style.width = STAGE_W + "px"; stage.style.height = STAGE_H + "px";
+  SCALE = Math.min(vw / STAGE_W, vh / STAGE_H);
   stage.style.transform = "translate(-50%,-50%) scale(" + SCALE + ")";
 }
-window.addEventListener("resize", fit); fit();
+window.addEventListener("resize", fit); window.addEventListener("orientationchange", function () { setTimeout(fit, 250); });
+if (window.visualViewport) window.visualViewport.addEventListener("resize", fit);
+fit();
 stage.addEventListener("scroll", function () { stage.scrollTop = 0; stage.scrollLeft = 0; });
 
 /* ---------------- audio (synthesised, no files) ---------------- */
