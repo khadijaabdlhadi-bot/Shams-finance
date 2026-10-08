@@ -7,3 +7,7 @@ data/
 !.env.example
 .DS_Store
 *.zip
+android/out/
+android/tools/
+android/*.p12
+android/proj/

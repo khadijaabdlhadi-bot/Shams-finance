@@ -651,7 +651,12 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
   $('fSchool').addEventListener('change', function () { prefs.school = this.checked; savePrefs(); renderSheet(); });
   $('fPaperBg').addEventListener('change', function () { prefs.paperBg = this.checked; savePrefs(); renderSheet(); });
 
-  function doPrint() { save(); fitText(); window.print(); }
+  function doPrint() {
+    save(); fitText();
+    // داخل تطبيق أندرويد: نافذة الطباعة من النظام (فيها الطابعات والحفظ PDF)
+    if (window.AndroidApp) { window.AndroidApp.print(fileBase(), prefs.paper === 'a4' ? 'a4' : 'a5'); return; }
+    window.print();
+  }
   $('printBtn').addEventListener('click', doPrint);
   $('dockPrint').addEventListener('click', doPrint);
   $('dockPreview').addEventListener('click', function () { $('preview').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
@@ -823,6 +828,11 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
     status(kind === 'pdf' ? 'جارٍ تجهيز ملف PDF…' : 'جارٍ تجهيز الصورة…');
     var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
     ready.then(renderCanvas).then(function (c) {
+      if (kind === 'png' && window.AndroidApp) {
+        window.AndroidApp.shareImage(c.toDataURL('image/png').split(',')[1], fileBase() + '.png');
+        status('تم حفظ الصورة في معرض الصور.');
+        return;
+      }
       if (kind === 'png') return new Promise(function (r) { c.toBlob(r, 'image/png'); }).then(function (b) { return deliver(b, fileBase() + '.png'); });
       return loadJsPdf().then(function (lib) {
         var a4 = prefs.paper === 'a4', pw = a4 ? 210 : 148, ph = a4 ? 297 : 210;
@@ -837,6 +847,11 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
   $('pngBtn').addEventListener('click', function () { exportSheet('png'); });
   $('dockPdf').addEventListener('click', function () { exportSheet('pdf'); });
 
+  if (window.AndroidApp) {
+    // في التطبيق: زر الطباعة يكفي للطباعة والحفظ PDF
+    $('pdfBtn').hidden = true;
+    $('printHint').textContent = 'زر الطباعة يفتح نافذة الطباعة: اختاري الطابعة، أو «حفظ بتنسيق PDF». زر الصورة يحفظ الورقة في المعرض ويفتح المشاركة (واتساب).';
+  }
   if (inViewer) {
     // داخل رابط Claude لا تفتح نافذة الطباعة، فالتحميل بدلها
     $('printBtn').hidden = true; $('dockPrint').hidden = true; $('dockPdf').hidden = false;
