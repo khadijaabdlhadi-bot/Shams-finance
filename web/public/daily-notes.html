@@ -333,6 +333,8 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
       <label class="switch"><input type="checkbox" id="fPaperBg"> طباعة بلون الورق (بدل الأبيض)</label>
       <div class="row-btns">
         <button class="btn btn-primary" type="button" id="printBtn">طباعة الورقة</button>
+        <button class="btn btn-primary" type="button" id="pdfBtn">تحميل PDF للطباعة</button>
+        <button class="btn" type="button" id="pngBtn">تحميل صورة</button>
         <button class="btn" type="button" id="newBtn">ورقة جديدة</button>
         <button class="btn btn-danger" type="button" id="clearBtn">مسح المحتوى</button>
       </div>
@@ -343,7 +345,8 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
           <button class="btn btn-sm" type="button" id="clearNo">إلغاء</button>
         </span>
       </div>
-      <p class="muted" style="margin:0">على الهاتف: زر الطباعة يفتح نافذة الطباعة، ويمكن منها اختيار الطابعة أو الحفظ PDF وإرساله.</p>
+      <p class="muted" style="margin:0" id="printHint">زر الطباعة يفتح نافذة الطباعة مباشرة. ملف PDF يُطبع من الهاتف أو الكمبيوتر، والصورة مناسبة للإرسال في الواتساب.</p>
+      <div class="note" id="saveStatus" hidden role="status"></div>
     </section>
 
     <section class="panel" aria-labelledby="h-saved">
@@ -380,6 +383,7 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
 <div class="dock">
   <button class="btn" type="button" id="dockPreview">المعاينة</button>
   <button class="btn btn-primary" type="button" id="dockPrint">طباعة</button>
+  <button class="btn btn-primary" type="button" id="dockPdf" hidden>تحميل PDF</button>
 </div>
 
 <script>
@@ -661,12 +665,197 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
   renderSaved();
   renderClasses();
   checkExists();
+  // ---------- تحميل الورقة PDF أو صورة ----------
+  // نرسم الورقة على لوحة (canvas) من مواضع عناصرها الحقيقية، كلمة كلمة،
+  // فيبقى الخط العربي متصلًا وتطابق النتيجة المعاينة تمامًا.
+  var inViewer = !!window.claude;
+  var downloadsNS = null;
+  var symCache = {};
+  function symImg(id, color) {
+    var key = id + color;
+    if (symCache[key]) return symCache[key];
+    var sym = document.getElementById(id);
+    var attrs = ['fill', 'stroke', 'stroke-linecap'].map(function (a) { return sym.getAttribute(a) ? a + '="' + sym.getAttribute(a) + '"' : ''; }).join(' ');
+    var src = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + sym.getAttribute('viewBox') + '" ' + attrs + '>' + sym.innerHTML + '</svg>';
+    src = src.replace(/currentColor/g, color);
+    symCache[key] = new Promise(function (res) {
+      var img = new Image();
+      img.onload = function () { res(img); };
+      img.onerror = function () { res(null); };
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+    });
+    return symCache[key];
+  }
+
+  function renderCanvas() {
+    fitText();
+    var sheet = $('sheet');
+    var a4 = prefs.paper === 'a4';
+    var W = a4 ? 1754 : 1240, H = Math.round(W * 209.5 / 148);
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    var sr = sheet.getBoundingClientRect();
+    var k = W / sr.width, kf = W / sheet.offsetWidth, u = W / 148;
+    var rule = '#3A342C', ink = '#1D1A16', bg = prefs.paperBg ? '#F6F2E8' : '#FFFFFF';
+    function R(el) { var r = el.getBoundingClientRect(); return { x: (r.left - sr.left) * k, y: (r.top - sr.top) * k, w: r.width * k, h: r.height * k }; }
+    function line(x1, y1, x2, y2, w) { ctx.beginPath(); ctx.lineWidth = w; ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = rule; ctx.fillStyle = rule;
+
+    // الإطار المزدوج
+    var fr = R(sheet.querySelector('.frame'));
+    var b1 = .35 * u, b2 = .18 * u, ins = b1 + 1.3 * u;
+    ctx.lineWidth = b1; ctx.strokeRect(fr.x + b1 / 2, fr.y + b1 / 2, fr.w - b1, fr.h - b1);
+    ctx.lineWidth = b2; ctx.strokeRect(fr.x + ins + b2 / 2, fr.y + ins + b2 / 2, fr.w - 2 * ins - b2, fr.h - 2 * ins - b2);
+
+    // الخط العمودي بجانب اسم المادة مع المعيّن الصغير
+    sheet.querySelectorAll('.s-row:not(.inline) .s-body').forEach(function (b) {
+      var r = R(b), xr = r.x + r.w;
+      line(xr - .125 * u, r.y + 2 * u, xr - .125 * u, r.y + r.h - 2 * u, .25 * u);
+      ctx.save(); ctx.translate(xr + .1 * u, r.y + r.h / 2); ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-.8 * u, -.8 * u, 1.6 * u, 1.6 * u); ctx.restore();
+    });
+    // الفواصل الأفقية بين المواد
+    sheet.querySelectorAll('.s-div').forEach(function (d) {
+      var l = R(d.querySelector('.seg-l')), m = R(d.querySelector('.seg-c'));
+      line(l.x + u, l.y + l.h / 2, l.x + l.w - u, l.y + l.h / 2, .2 * u);
+      line(m.x + 4 * u, m.y + m.h / 2, m.x + m.w - 6 * u, m.y + m.h / 2, .2 * u);
+    });
+    // الخطوط المنقّطة في رأس الورقة
+    sheet.querySelectorAll('.s-head .fill').forEach(function (f) {
+      if (getComputedStyle(f).borderBottomStyle !== 'dotted') return;
+      var r = R(f), w = .25 * u;
+      ctx.save(); ctx.setLineDash([w, w * 1.2]); line(r.x, r.y + r.h - w / 2, r.x + r.w, r.y + r.h - w / 2, w); ctx.restore();
+    });
+
+    var jobs = [];
+    // الزخارف: الزوايا والجوانب والفواصل
+    sheet.querySelectorAll('.corner, .side-orn, .s-div svg').forEach(function (el) {
+      var isSvg = el.tagName.toLowerCase() === 'svg';
+      var id = isSvg ? el.querySelector('use').getAttribute('href').slice(1) : el.querySelector('use').getAttribute('href').slice(1);
+      var r = R(el);
+      var tf = getComputedStyle(el).transform, sx = 1, sy = 1;
+      var mm = /matrix\(([^)]+)\)/.exec(tf || '');
+      if (mm) { var v = mm[1].split(',').map(Number); sx = v[0] < 0 ? -1 : 1; sy = v[3] < 0 ? -1 : 1; }
+      var pad = isSvg ? .8 * u : 0;
+      jobs.push(symImg(id, rule).then(function (img) {
+        ctx.fillStyle = bg; ctx.fillRect(r.x, r.y, r.w, r.h);
+        if (!img) return;
+        var w = r.w - 2 * pad, h = r.h, ar = img.width && img.height ? img.width / img.height : 1;
+        var vb = document.getElementById(id).getAttribute('viewBox').split(/\s+/).map(Number);
+        ar = vb[2] / vb[3];
+        var dw = w, dh = w / ar; if (dh > h) { dh = h; dw = h * ar; }
+        ctx.save(); ctx.translate(r.x + r.w / 2, r.y + r.h / 2); ctx.scale(sx, sy);
+        ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh); ctx.restore();
+      }));
+    });
+
+    return Promise.all(jobs).then(function () {
+      // الشعار
+      var logo = sheet.querySelector('.s-school img');
+      if (logo && !$('sSchool').hidden && logo.complete && logo.naturalWidth) { var lr = R(logo); ctx.drawImage(logo, lr.x, lr.y, lr.w, lr.h); }
+      // النصوص كلمة كلمة في مواضعها
+      ctx.fillStyle = ink;
+      var walker = document.createTreeWalker(sheet, NodeFilter.SHOW_TEXT, null);
+      var node, range = document.createRange(), re = /\S+/g;
+      while ((node = walker.nextNode())) {
+        var par = node.parentElement;
+        if (!par || par.closest('[hidden]')) continue;
+        var cs = getComputedStyle(par);
+        var vertical = cs.writingMode.indexOf('vertical') === 0;
+        ctx.font = cs.fontWeight + ' ' + (parseFloat(cs.fontSize) * kf) + 'px ' + cs.fontFamily;
+        ctx.direction = cs.direction === 'ltr' ? 'ltr' : 'rtl';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+        var t = node.nodeValue, m2; re.lastIndex = 0;
+        while ((m2 = re.exec(t))) {
+          range.setStart(node, m2.index); range.setEnd(node, m2.index + m2[0].length);
+          var rr = range.getBoundingClientRect(); if (!rr.width && !rr.height) continue;
+          var x = (rr.left - sr.left + rr.width / 2) * k, y = (rr.top - sr.top + rr.height / 2) * k;
+          var me = ctx.measureText(m2[0]);
+          var size = parseFloat(cs.fontSize) * kf;
+          var asc = me.fontBoundingBoxAscent || size * .9, desc = me.fontBoundingBoxDescent || size * .4;
+          ctx.save(); ctx.translate(x, y); if (vertical) ctx.rotate(Math.PI / 2);
+          ctx.fillText(m2[0], 0, (asc - desc) / 2); ctx.restore();
+        }
+      }
+      return c;
+    });
+  }
+
+  function fileBase() {
+    var cls = (state.cls || '').trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '');
+    return 'ملاحظات' + (cls ? '-' + cls : '') + (state.date ? '-' + state.date : '');
+  }
+  var jsPdfLoading = null;
+  function loadJsPdf() {
+    if (window.jspdf) return Promise.resolve(window.jspdf);
+    if (!jsPdfLoading) jsPdfLoading = new Promise(function (res, rej) {
+      var sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      sc.onload = function () { window.jspdf ? res(window.jspdf) : rej(new Error('jspdf')); };
+      sc.onerror = function () { jsPdfLoading = null; rej(new Error('jspdf')); };
+      document.head.appendChild(sc);
+    });
+    return jsPdfLoading;
+  }
+  function status(msg, bad) {
+    var el = $('saveStatus'); el.textContent = msg; el.hidden = !msg; el.classList.toggle('confirm', !!bad);
+  }
+  function deliver(blob, name) {
+    if (downloadsNS) {
+      return downloadsNS.save({ filename: name, data: blob }).then(function () { status('تم حفظ الملف: ' + name); }, function (e) {
+        var code = e && e.code;
+        if (code === 'declined') status('');
+        else if (code === 'rate_limited') status('نافذة الحفظ مفتوحة بالفعل. أكملي الحفظ منها أولًا.', true);
+        else status('تعذّر حفظ الملف هنا. افتحي التطبيق من ملف daily-notes.html واطبعي منه.', true);
+      });
+    }
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    status('تم تجهيز الملف: ' + name);
+    return Promise.resolve();
+  }
+  var busy = false;
+  function exportSheet(kind) {
+    if (busy) return; busy = true; save();
+    status(kind === 'pdf' ? 'جارٍ تجهيز ملف PDF…' : 'جارٍ تجهيز الصورة…');
+    var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    ready.then(renderCanvas).then(function (c) {
+      if (kind === 'png') return new Promise(function (r) { c.toBlob(r, 'image/png'); }).then(function (b) { return deliver(b, fileBase() + '.png'); });
+      return loadJsPdf().then(function (lib) {
+        var a4 = prefs.paper === 'a4', pw = a4 ? 210 : 148, ph = a4 ? 297 : 210;
+        var doc = new lib.jsPDF({ orientation: 'portrait', unit: 'mm', format: a4 ? 'a4' : 'a5' });
+        doc.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pw, pw * 209.5 / 148);
+        return deliver(doc.output('blob'), fileBase() + '.pdf');
+      }, function () { status('ملف PDF يحتاج إنترنت أول مرة. جرّبي «تحميل صورة» أو زر الطباعة.', true); });
+    }).catch(function () { status('تعذّر تجهيز الملف. حاولي مرة أخرى.', true); })
+      .then(function () { busy = false; });
+  }
+  $('pdfBtn').addEventListener('click', function () { exportSheet('pdf'); });
+  $('pngBtn').addEventListener('click', function () { exportSheet('png'); });
+  $('dockPdf').addEventListener('click', function () { exportSheet('pdf'); });
+
+  if (inViewer) {
+    // داخل رابط Claude لا تفتح نافذة الطباعة، فالتحميل بدلها
+    $('printBtn').hidden = true; $('dockPrint').hidden = true; $('dockPdf').hidden = false;
+    $('printHint').textContent = 'حمّلي الورقة PDF ثم افتحيه واطبعيه من الهاتف أو الكمبيوتر. الصورة مناسبة للإرسال في الواتساب.';
+    window.claude.use('downloads').then(function (ns) {
+      downloadsNS = ns;
+      if (!ns) {
+        $('pdfBtn').hidden = true; $('pngBtn').hidden = true; $('dockPdf').hidden = true;
+        $('printHint').textContent = 'التحميل غير متاح في هذا العرض. افتحي الرابط في المتصفح بعد تسجيل الدخول.';
+      }
+    });
+  }
+
   // ---------- التثبيت كتطبيق على الهاتف ----------
   var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  if ('serviceWorker' in navigator && !window.claude && location.protocol !== 'file:') {
     navigator.serviceWorker.register('daily-notes-sw.js').catch(function () {});
   }
-  if (!standalone && location.protocol !== 'file:') {
+  if (!standalone && !inViewer && location.protocol !== 'file:') {
     var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     var deferred = null;
     if (ios) {
