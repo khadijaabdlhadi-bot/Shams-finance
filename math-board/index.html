@@ -64,7 +64,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .floor { position: absolute; left: 0; right: 0; bottom: 0; height: 170px; z-index: -1;
   background: linear-gradient(180deg, transparent, rgba(47,128,237,.12)), repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 2px, transparent 2px 80px); }
 
-.scr { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.scr { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; }
 .enter { animation: fadeUp .5s cubic-bezier(.2,.9,.3,1) both; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } }
 
@@ -105,7 +105,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .teams-setup { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; }
 .tcard { border-radius: 26px; padding: 26px 22px; background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03)); box-shadow: inset 0 0 0 2px rgba(255,255,255,.08);
   display: flex; flex-direction: column; gap: 16px; align-items: center; position: relative; overflow: hidden; }
-.tcard::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 10px; background: var(--c); box-shadow: 0 0 30px var(--c); }
+.tcard::before { content: ""; position: absolute; top: 0; right: 0; left: 0; height: 10px; background: var(--c); box-shadow: 0 0 30px var(--c); }
 .tdot { width: 96px; height: 96px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8, transparent 40%), var(--c); box-shadow: 0 0 40px var(--c); display: grid; place-items: center;
   font-family: var(--display); font-weight: 900; font-size: 44px; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.35); }
 .tcard input { width: 100%; font: 800 28px var(--display); text-align: center; color: var(--text); background: rgba(0,0,0,.3); border: 2px solid rgba(255,255,255,.15); border-radius: 14px; padding: 12px; user-select: text; -webkit-user-select: text; }
@@ -152,7 +152,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .tile:disabled::before { display: none; }
 .tile:disabled .v { display: none; }
 .tile .won { display: none; }
-.tile:disabled .won { display: flex; position: absolute; inset: 0; align-items: center; justify-content: center; gap: 10px; font-size: 22px; font-weight: 800; color: var(--muted); }
+.tile:disabled .won { display: flex; position: absolute; top: 0; right: 0; bottom: 0; left: 0; align-items: center; justify-content: center; gap: 10px; font-size: 22px; font-weight: 800; color: var(--muted); }
 .tile:disabled .won i { width: 26px; height: 26px; border-radius: 50%; background: var(--wc, rgba(255,255,255,.15)); box-shadow: 0 0 16px var(--wc, transparent); }
 
 .pods { height: 150px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; padding: 0 36px 22px; }
@@ -168,14 +168,14 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .pod .ll span { font-size: 16px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.12); }
 .pod .ll span.used { opacity: .3; text-decoration: line-through; }
 .pod .sc { font-family: var(--display); font-weight: 900; font-size: 54px; font-variant-numeric: tabular-nums; line-height: 1; }
-.pod .crown { position: absolute; top: -26px; inset-inline-start: 20px; font-size: 38px; filter: drop-shadow(0 0 10px var(--gold)); animation: bob 1.4s ease-in-out infinite alternate; }
+.pod .crown { position: absolute; top: -26px; right: 20px; font-size: 38px; filter: drop-shadow(0 0 10px var(--gold)); animation: bob 1.4s ease-in-out infinite alternate; }
 @keyframes bob { to { transform: translateY(-6px); } }
-.turntag { position: absolute; top: -18px; inset-inline-end: 18px; background: var(--c); color: #fff; font-weight: 800; font-size: 17px; padding: 4px 14px; border-radius: 999px; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.turntag { position: absolute; top: -18px; left: 18px; background: var(--c); color: #fff; font-weight: 800; font-size: 17px; padding: 4px 14px; border-radius: 999px; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
 .pop { animation: pop .7s; }
 @keyframes pop { 30% { transform: scale(1.35); color: var(--gold); } }
 
 /* ---------- banner ---------- */
-#banner { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+#banner { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 30; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 #banner .strip { width: 100%; padding: 34px 0; text-align: center; background: linear-gradient(90deg, transparent, var(--c) 18%, var(--c) 82%, transparent);
   box-shadow: 0 0 80px var(--c); animation: stripIn 1.9s cubic-bezier(.2,.9,.3,1) both; }
 #banner .strip b { display: block; margin-bottom: 14px; font-family: var(--display); font-weight: 900; font-size: 92px; line-height: 1.1; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,.35); }
@@ -183,7 +183,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 @keyframes stripIn { 0% { transform: scaleY(0); opacity: 0; } 14% { transform: scaleY(1); opacity: 1; } 82% { transform: none; opacity: 1; } 100% { transform: translateX(-120%); opacity: 0; } }
 
 /* ---------- question ---------- */
-#qv { position: absolute; inset: 0; z-index: 20; background: rgba(3,8,20,.86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; flex-direction: column; padding: 30px 60px 34px; gap: 22px; }
+#qv { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; background: rgba(3,8,20,.86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; flex-direction: column; padding: 30px 60px 34px; gap: 22px; }
 .qtop { display: flex; align-items: center; gap: 20px; height: 110px; }
 .qtop .chip { font-family: var(--display); font-weight: 900; font-size: 32px; padding: 10px 26px; border-radius: 16px; background: linear-gradient(180deg, #fff, var(--silver) 60%, var(--silver-2)); color: var(--ink); }
 .qtop .val { font-family: var(--display); font-weight: 900; font-size: 40px; padding: 4px 28px; border-radius: 16px; background: linear-gradient(180deg, #ffe7a6, var(--gold), var(--sun)); color: var(--ink); }
@@ -195,7 +195,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .clock circle { fill: none; stroke-width: 12; }
 .clock .bg { stroke: rgba(255,255,255,.1); }
 .clock .fg { stroke: var(--cc, var(--ok)); stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke .3s; }
-.clock b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 50px; font-variant-numeric: tabular-nums; }
+.clock b { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 50px; font-variant-numeric: tabular-nums; }
 .clock.urgent { animation: throb .5s infinite alternate; }
 @keyframes throb { to { transform: scale(1.1); } }
 .qbox { flex: none; min-height: 210px; display: grid; place-items: center; text-align: center; padding: 26px 50px; border-radius: 30px;
@@ -235,7 +235,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .fly { position: absolute; z-index: 40; font-family: var(--display); font-weight: 900; font-size: 64px; color: var(--gold); text-shadow: 0 4px 0 rgba(90,40,0,.9), 0 0 30px var(--sun); pointer-events: none; transition: transform 1s cubic-bezier(.5,-0.3,.6,1), opacity 1s; }
 
 /* golden splash / generic center */
-.center { position: absolute; inset: 0; z-index: 35; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; background: rgba(3,8,20,.82); }
+.center { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 35; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; background: rgba(3,8,20,.82); }
 .sunball { width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fffbe6, var(--gold) 38%, var(--sun) 70%, #c2650c); box-shadow: 0 0 120px var(--gold), 0 0 260px var(--sun); animation: sunIn 1s cubic-bezier(.2,1.5,.4,1) both, throb .7s .9s infinite alternate; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 92px; color: var(--ink); }
 @keyframes sunIn { from { transform: scale(0) rotate(-180deg); } }
 .center h2 { font-family: var(--display); font-weight: 900; font-size: 92px; margin: 0; color: var(--gold); text-shadow: 0 6px 0 rgba(90,40,0,.9), 0 0 50px var(--sun); animation: fadeUp .6s .3s both; }
@@ -254,7 +254,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .pcol .cr { font-size: 64px; height: 72px; }
 
 /* menu */
-#menu { position: absolute; inset: 0; z-index: 45; background: rgba(3,8,20,.88); display: flex; align-items: center; justify-content: center; }
+#menu { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 45; background: rgba(3,8,20,.88); display: flex; align-items: center; justify-content: center; }
 .menu-box { width: 980px; border-radius: 30px; padding: 40px 50px; background: linear-gradient(180deg, var(--studio-2), var(--studio)); box-shadow: 0 0 0 3px var(--glass-hi), 0 30px 80px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 28px; animation: qIn .4s both; }
 .menu-box h3 { margin: 0; font-family: var(--display); font-weight: 900; font-size: 48px; color: var(--gold); }
 .adj { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
@@ -267,10 +267,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 
 .toast { position: absolute; bottom: 190px; left: 50%; transform: translateX(-50%); z-index: 60; background: linear-gradient(180deg, #ffe7a6, var(--gold)); color: var(--ink); font: 900 30px var(--display); padding: 14px 34px; border-radius: 999px; box-shadow: 0 14px 40px rgba(0,0,0,.5); animation: fadeUp .3s both; white-space: nowrap; }
 
-#fx { position: fixed; inset: 0; z-index: 80; pointer-events: none; width: 100%; height: 100%; }
+#fx { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 80; pointer-events: none; width: 100%; height: 100%; }
 
 /* ---------- editor (normal page, not scaled) ---------- */
-#editor { position: fixed; inset: 0; z-index: 90; overflow-y: auto; background: #0b1530; padding: 24px 16px 0; user-select: text; -webkit-user-select: text; }
+#editor { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 90; overflow-y: auto; background: #0b1530; padding: 24px 16px 0; user-select: text; -webkit-user-select: text; }
 .ed { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; font-size: 16px; }
 .ed h2 { margin: 0; font-family: var(--display); font-weight: 900; font-size: 34px; color: var(--gold); }
 .ed .note { margin: 0; color: var(--muted); line-height: 1.8; }
@@ -294,7 +294,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .etoast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); z-index: 95; background: var(--gold); color: var(--ink); font: 800 18px var(--display); padding: 10px 22px; border-radius: 999px; }
 @media (max-width: 700px) { .edch { grid-template-columns: minmax(0, 1fr); } }
 
-#rotate { position: fixed; inset: 0; z-index: 70; display: none; place-items: center; text-align: center; padding: 24px; background: #070f24; font: 800 22px var(--display); line-height: 1.8; }
+#rotate { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 70; display: none; place-items: center; text-align: center; padding: 24px; background: #070f24; font: 800 22px var(--display); line-height: 1.8; }
 @media (orientation: portrait) and (max-width: 900px) { #rotate { display: grid; } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -303,7 +303,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 </style>
 </head>
 <body>
-<div id="jsWarn" style="position:fixed;inset:auto 0 0 0;z-index:99;background:#ffd36b;color:#0a1226;padding:14px 16px;font:700 17px/1.7 Tahoma,Arial,sans-serif;text-align:center" dir="rtl">
+<div id="jsWarn" style="position:fixed;right:0;bottom:0;left:0;z-index:99;background:#ffd36b;color:#0a1226;padding:14px 16px;font:700 17px/1.7 Tahoma,Arial,sans-serif;text-align:center" dir="rtl">
   اللعبة تحتاج متصفح كامل. افتحي الرابط في Safari أو Chrome، مش من معاينة الملفات.
 </div>
 
@@ -380,6 +380,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 <script>
 (function () {
 "use strict";
+if (!Element.prototype.matches) Element.prototype.matches = Element.prototype.msMatchesSelector || Element.prototype.webkitMatchesSelector;
+if (!Element.prototype.closest) Element.prototype.closest = function (sel) { var el = this; while (el && el.nodeType === 1) { if (el.matches(sel)) return el; el = el.parentElement; } return null; };
 document.getElementById("jsWarn").hidden = true;
 
 var VALUES = [100, 200, 300, 400, 500];
