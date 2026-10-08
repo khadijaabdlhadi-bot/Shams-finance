@@ -335,6 +335,10 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
         <button class="btn btn-primary" type="button" id="printBtn">طباعة الورقة</button>
         <button class="btn btn-primary" type="button" id="pdfBtn">تحميل PDF للطباعة</button>
         <button class="btn" type="button" id="pngBtn">تحميل صورة</button>
+      </div>
+      <div class="row-btns" id="shareRow" hidden>
+        <button class="btn btn-primary" type="button" id="shareImgBtn">مشاركة الورقة (صورة)</button>
+        <button class="btn" type="button" id="sharePdfBtn">مشاركة PDF</button>
         <button class="btn" type="button" id="newBtn">ورقة جديدة</button>
         <button class="btn btn-danger" type="button" id="clearBtn">مسح المحتوى</button>
       </div>
@@ -382,6 +386,7 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
 
 <div class="dock">
   <button class="btn" type="button" id="dockPreview">المعاينة</button>
+  <button class="btn" type="button" id="dockShare" hidden>مشاركة</button>
   <button class="btn btn-primary" type="button" id="dockPrint">طباعة</button>
   <button class="btn btn-primary" type="button" id="dockPdf" hidden>تحميل PDF</button>
 </div>
@@ -531,6 +536,7 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
     $('page-size').textContent = '@media print { @page { size: ' + (prefs.paper === 'a4' ? 'A4' : 'A5') + ' portrait; margin: 0; } }';
     $('pA5').setAttribute('aria-pressed', String(prefs.paper !== 'a4'));
     $('pA4').setAttribute('aria-pressed', String(prefs.paper === 'a4'));
+    if (typeof prepareShare === 'function') prepareShare();
   }
 
   // تصغير الخط تلقائيًا حتى يتسع كل المحتوى داخل الإطار
@@ -843,6 +849,72 @@ textarea { resize: vertical; min-height: 64px; font-family: var(--naskh); font-s
     }).catch(function () { status('تعذّر تجهيز الملف. حاولي مرة أخرى.', true); })
       .then(function () { busy = false; });
   }
+  // ---------- مشاركة الورقة (واتساب، بريد، تيليجرام…) ----------
+  // نجهّز الملف مسبقًا بعد كل تعديل، لأن الهاتف يطلب أن تُفتح المشاركة مباشرة بعد الضغط
+  var canShareFiles = false;
+  try {
+    canShareFiles = !inViewer && !!navigator.share && !!navigator.canShare &&
+      navigator.canShare({ files: [new File(['x'], 'x.png', { type: 'image/png' })] });
+  } catch (e) { canShareFiles = false; }
+  var shareReady = { png: null, pdf: null }, prepTimer = null, prepSeq = 0;
+  function buildPdfFile(c) {
+    return loadJsPdf().then(function (lib) {
+      var a4 = prefs.paper === 'a4', pw = a4 ? 210 : 148;
+      var doc = new lib.jsPDF({ orientation: 'portrait', unit: 'mm', format: a4 ? 'a4' : 'a5' });
+      doc.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pw, pw * 209.5 / 148);
+      return new File([doc.output('blob')], fileBase() + '.pdf', { type: 'application/pdf' });
+    });
+  }
+  function prepareShare(delay) {
+    if (!canShareFiles) return Promise.resolve();
+    clearTimeout(prepTimer);
+    shareReady.png = shareReady.pdf = null;
+    var seq = ++prepSeq;
+    return new Promise(function (done) {
+      prepTimer = setTimeout(function () {
+        var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+        ready.then(renderCanvas).then(function (c) {
+          if (seq !== prepSeq) return;
+          return new Promise(function (r) { c.toBlob(r, 'image/png'); }).then(function (b) {
+            if (seq !== prepSeq) return;
+            shareReady.png = new File([b], fileBase() + '.png', { type: 'image/png' });
+            return buildPdfFile(c).then(function (f) { if (seq === prepSeq) shareReady.pdf = f; }, function () {});
+          });
+        }).catch(function () {}).then(done);
+      }, delay == null ? 900 : delay);
+    });
+  }
+  function shareSheet(kind) {
+    save();
+    var f = shareReady[kind];
+    if (!f) {
+      status('جارٍ تجهيز الورقة للمشاركة…');
+      prepareShare(0).then(function () {
+        if (!shareReady[kind]) { status(kind === 'pdf' ? 'ملف PDF يحتاج إنترنت أول مرة. جرّبي مشاركة الصورة.' : 'تعذّر تجهيز الورقة. حاولي مرة أخرى.', true); return; }
+        status('الورقة جاهزة. اضغطي «مشاركة» مرة ثانية.');
+      });
+      return;
+    }
+    var title = 'ملاحظات ' + (state.day || '') + ' ' + fmtDate(state.date) + ((state.cls || '').trim() ? ' — الفصل ' + state.cls.trim() : '');
+    navigator.share({ files: [f], title: title }).then(function () { status(''); }, function (e) {
+      if (e && e.name === 'AbortError') return;
+      if (e && e.name === 'NotAllowedError') { status('اضغطي «مشاركة» مرة ثانية.'); return; }
+      status('تعذّرت المشاركة من هذا المتصفح. استخدمي «تحميل صورة» ثم أرسليها.', true);
+    });
+  }
+  if (window.AndroidApp) {
+    // في تطبيق أندرويد: المشاركة تمر عبر التطبيق نفسه
+    $('shareRow').hidden = false; $('sharePdfBtn').hidden = true; $('dockShare').hidden = false;
+    $('shareImgBtn').addEventListener('click', function () { exportSheet('png'); });
+    $('dockShare').addEventListener('click', function () { exportSheet('png'); });
+  } else if (canShareFiles) {
+    $('shareRow').hidden = false; $('dockShare').hidden = false;
+    $('shareImgBtn').addEventListener('click', function () { shareSheet('png'); });
+    $('sharePdfBtn').addEventListener('click', function () { shareSheet('pdf'); });
+    $('dockShare').addEventListener('click', function () { shareSheet('png'); });
+    loadJsPdf().catch(function () {}).then(function () { prepareShare(300); });
+  }
+
   $('pdfBtn').addEventListener('click', function () { exportSheet('pdf'); });
   $('pngBtn').addEventListener('click', function () { exportSheet('png'); });
   $('dockPdf').addEventListener('click', function () { exportSheet('pdf'); });
