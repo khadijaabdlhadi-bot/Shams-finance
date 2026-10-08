@@ -262,7 +262,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .podium { display: flex; align-items: flex-end; gap: 30px; }
 .pcol { width: 250px; display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: 0; transform: translateY(40px); transition: opacity .5s, transform .6s cubic-bezier(.2,1.3,.4,1); }
 .pcol.show { opacity: 1; transform: none; }
-.pcol .nm { font-family: var(--display); font-weight: 900; font-size: 32px; }
+.pcol .nm { font-family: var(--display); font-weight: 900; font-size: 32px; width: 100%; text-align: center; line-height: 1.2; }
 .pcol .pts { font-family: var(--display); font-weight: 900; font-size: 40px; line-height: 1; color: var(--gold); }
 .pcol .blk { width: 100%; border-radius: 22px 22px 6px 6px; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 64px; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,.35);
   background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(0,0,0,.45)), var(--c); box-shadow: 0 0 46px -8px var(--c); }
@@ -345,44 +345,52 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .portrait .adj { grid-template-columns: 1fr 1fr; }
 .portrait .save-opts { grid-template-columns: 1fr; }
 .portrait #banner .strip b { font-size: 70px; }
-#rotate { position: fixed; top: 12px; right: 12px; left: 12px; z-index: 70; display: none; text-align: center; padding: 10px 14px; border-radius: 14px; background: #ffd36b; color: #0a1226; font: 800 16px var(--display); line-height: 1.6; pointer-events: none; }
-@media (orientation: portrait) and (max-width: 600px) { /* centre the setup/rules content on any stage height */
-.panel-scr { justify-content: center; }
-.panel-scr > .row { margin-top: 34px !important; }
-/* portrait tablets: narrower stage (1000 wide) with stacked layouts */
-.portrait .panel-scr { padding: 50px 46px; }
-.portrait .teams-setup { grid-template-columns: 1fr 1fr; }
-.portrait .settings { flex-direction: column; gap: 20px; }
-.portrait .rules { grid-template-columns: 1fr; gap: 16px; }
-.portrait .rules li { font-size: 27px; }
-.portrait .topbar { padding: 18px 24px 0; gap: 14px; }
-.portrait .topbar .t b { font-size: 32px; }
-.portrait .topbar .t span { display: none; }
-.portrait .progress { min-width: 0; }
-.portrait .progress .bar { width: 170px; }
-.portrait .progress span { font-size: 18px; }
-.portrait .board { padding: 18px 24px 16px; gap: 12px; grid-template-rows: 96px repeat(5, 1fr); }
-.portrait .cat { font-size: 22px; padding: 6px; }
-.portrait .tile { font-size: 56px; }
-.portrait .pods { height: auto; grid-template-columns: 1fr 1fr; gap: 26px 16px; padding: 18px 24px 26px; }
-.portrait .pod { min-height: 110px; }
-.portrait .pod .sc { font-size: 48px; }
-.portrait #qv { padding: 40px 36px; gap: 26px; }
-.portrait .qtop { flex-wrap: wrap; height: auto; gap: 14px; }
-.portrait .qbox { font-size: 48px; padding: 30px; }
-.portrait .ch { font-size: 36px; min-height: 120px; }
-.portrait .qbar { flex-wrap: wrap; gap: 14px; justify-content: center; }
-.portrait .qbar .sp { display: none; }
-.portrait #hintMsg { display: none; }
-.portrait .qbar .msg { width: 100%; text-align: center; font-size: 34px; }
-.portrait .steal { flex-wrap: wrap; justify-content: center; }
-.portrait .podium { gap: 14px; }
-.portrait .pcol { width: 220px; }
-.portrait .menu-box { width: 920px; }
-.portrait .adj { grid-template-columns: 1fr 1fr; }
-.portrait .save-opts { grid-template-columns: 1fr; }
-.portrait #banner .strip b { font-size: 70px; }
-#rotate { display: block; } }
+/* phones held upright: 760-wide stage */
+.phone .panel-scr { padding: 40px 28px; }
+.phone .h2 { font-size: 54px; }
+.phone .title { font-size: 84px; }
+.phone #intro .plaque img { width: 380px; }
+.phone .samplenote { border-radius: 20px; font-size: 21px; }
+.phone .tcard { padding: 20px 14px; }
+.phone .tcard input { font-size: 24px; }
+.phone .seg button { padding: 10px 14px; font-size: 22px; }
+.phone .rules li { font-size: 25px; padding: 14px 16px; }
+.phone .rules .ic { width: 58px; height: 58px; font-size: 30px; }
+.phone .topbar { padding: 16px 16px 0; gap: 10px; height: 92px; }
+.phone .topbar .plaque img { height: 60px; }
+.phone .topbar .t b { font-size: 28px; }
+.phone .topbar .sp { display: none; }
+.phone .progress { flex: 1; }
+.phone .progress .bar { width: 100%; }
+.phone .topbar .tools { gap: 8px; }
+.phone .round { width: 56px; height: 56px; }
+.phone .board { padding: 14px 16px; gap: 10px; grid-template-rows: 92px repeat(5, 1fr); }
+.phone .cat { font-size: 19px; border-radius: 14px; }
+.phone .tile { font-size: 46px; border-radius: 14px; }
+.phone .tile:disabled .won { font-size: 16px; flex-direction: column; gap: 4px; }
+.phone .pods { padding: 16px 16px 22px; gap: 24px 12px; }
+.phone .pod { padding: 12px 14px; gap: 10px; }
+.phone .pod .dot { width: 46px; height: 46px; font-size: 22px; }
+.phone .pod .nm { font-size: 22px; }
+.phone .pod .ll span { font-size: 14px; padding: 2px 8px; }
+.phone .pod .sc { font-size: 42px; }
+.phone #qv { padding: 34px 24px; gap: 22px; }
+.phone .qtop .chip, .phone .who { font-size: 28px; }
+.phone .qbox { font-size: 42px; padding: 26px 22px; min-height: 180px; }
+.phone .choices { grid-template-columns: 1fr; gap: 14px; }
+.phone .ch { min-height: 96px; font-size: 34px; }
+.phone .btn { font-size: 28px; padding: 18px 32px; }
+.phone .btn.sm { font-size: 22px; padding: 14px 22px; }
+.phone .ll-btn { font-size: 22px; padding: 14px 16px; }
+.phone .steal .tb { font-size: 24px; padding: 14px 18px; }
+.phone .podium { gap: 8px; }
+.phone .pcol { width: 170px; }
+.phone .pcol .nm { font-size: 24px; }
+.phone .center h2, .phone #win h2 { font-size: 58px; text-align: center; }
+.phone .menu-box { width: 720px; padding: 32px 28px; }
+.phone .save-opt { font-size: 21px; }
+.phone #banner .strip b { font-size: 54px; }
+.phone #banner .strip span { font-size: 28px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
@@ -463,7 +471,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 </div>
 
 <div id="editor" hidden></div>
-<div id="rotate">للعرض الأفضل لفّي الهاتف بالعرض ↻</div>
 <canvas id="fx"></canvas>
 
 <script>
@@ -544,13 +551,20 @@ var stage = $("#stage"), SCALE = 1;
 // The stage keeps a 1600x900 design but grows taller (iPad portrait) or wider (wide screens)
 // so the game always fills the screen instead of leaving empty bands.
 var STAGE_W = 1600, STAGE_H = 900;
+var safeProbe = document.createElement("div");
+safeProbe.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)";
+document.body.appendChild(safeProbe);
 function fit() {
-  var vw = window.innerWidth || 1600, vh = window.innerHeight || 900;
-  var portrait = vh > vw * 1.05;
-  STAGE_W = portrait ? 1000 : Math.min(2200, Math.max(1600, 900 * vw / vh));
+  // keep clear of the iPhone notch / home bar
+  var cs = getComputedStyle(safeProbe), st = parseFloat(cs.paddingTop) || 0, sr = parseFloat(cs.paddingRight) || 0, sb = parseFloat(cs.paddingBottom) || 0, sl = parseFloat(cs.paddingLeft) || 0;
+  var vw = (window.innerWidth || 1600) - sl - sr, vh = (window.innerHeight || 900) - st - sb;
+  var portrait = vh > vw * 1.05, phone = portrait && vw < 600;
+  STAGE_W = portrait ? (phone ? 760 : 1000) : Math.min(2200, Math.max(1600, 900 * vw / vh));
   STAGE_H = Math.min(2600, Math.max(900, STAGE_W * vh / vw));
   stage.classList.toggle("portrait", portrait);
+  stage.classList.toggle("phone", phone);
   stage.style.width = STAGE_W + "px"; stage.style.height = STAGE_H + "px";
+  stage.style.left = (sl + vw / 2) + "px"; stage.style.top = (st + vh / 2) + "px";
   SCALE = Math.min(vw / STAGE_W, vh / STAGE_H);
   stage.style.transform = "translate(-50%,-50%) scale(" + SCALE + ")";
 }
