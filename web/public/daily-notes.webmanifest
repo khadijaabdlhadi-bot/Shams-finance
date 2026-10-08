@@ -1,0 +1,19 @@
+{
+  "name": "الملاحظات اليومية — مدرسة شمس الوطن",
+  "short_name": "ملاحظات شمس",
+  "description": "ورقة الملاحظات اليومية للفصول: تعبئة من الهاتف وطباعة",
+  "id": "/daily-notes.html",
+  "start_url": "/daily-notes.html",
+  "scope": "/daily-notes",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F7FB",
+  "theme_color": "#0F4C81",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/daily-notes-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/daily-notes-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/daily-notes-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
