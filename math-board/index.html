@@ -4,8 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>لوحة شمس الوطن</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-apple.png">
+<meta name="theme-color" content="#070f24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="لوحة شمس">
 <meta property="og:title" content="لوحة شمس الوطن">
-<meta property="og:description" content="مسابقة الرياضيات للصف الأول الثانوي من مدرسة شمس الوطن">
+<meta property="og:description" content="مسابقة صفية بالفرق من مدرسة شمس الوطن، لأي مادة وأي مستوى">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@500;700;800&display=swap">
@@ -97,6 +103,14 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
   background: linear-gradient(180deg, #fff6d6 10%, var(--gold) 45%, var(--sun) 75%, #c46a0e); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 6px 0 rgba(90,40,0,.9)) drop-shadow(0 0 40px rgba(243,154,43,.45)); }
 .subtitle { font-size: 32px; font-weight: 700; color: var(--silver); margin: 0; letter-spacing: .5px; }
+.samplenote { margin: 0; font-size: 22px; font-weight: 700; color: var(--muted); background: rgba(255,255,255,.06); padding: 10px 24px; border-radius: 999px; }
+.samplenote b { color: var(--gold); }
+.save-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.save-opt { border-radius: 22px; padding: 24px; background: rgba(255,255,255,.06); display: flex; flex-direction: column; gap: 14px; font-size: 22px; font-weight: 700; line-height: 1.6; }
+.save-opt h4 { margin: 0; font-family: var(--display); font-weight: 900; font-size: 30px; color: var(--gold); }
+.save-opt ol { margin: 0; padding-inline-start: 28px; color: var(--silver); }
+.save-opt .btn { align-self: flex-start; margin-top: auto; }
+.save-opt small { font-size: 18px; color: var(--muted); }
 .row { display: flex; gap: 22px; justify-content: center; align-items: center; flex-wrap: wrap; }
 
 /* ---------- setup ---------- */
@@ -323,7 +337,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
       <button class="btn gold" id="goSetup">مسابقة جديدة</button>
       <button class="btn" id="goResume" hidden>كمّل المسابقة</button>
       <button class="btn dark" id="goEditor">الأسئلة</button>
+      <button class="btn dark" id="goSave">📥 حفظ التطبيق</button>
     </div>
+    <p class="samplenote" id="sampleNote" hidden>الأسئلة الحالية <b>أمثلة توضيحية</b> تبيّن الطريقة. اكتبي أسئلتك لأي مادة أو مستوى من زر «الأسئلة».</p>
   </section>
 
   <!-- SETUP -->
@@ -395,7 +411,7 @@ var LET = ["أ", "ب", "ج", "د"];
 // Sample questions. `...` marks a math expression. correct = index of the right choice.
 var SAMPLE = {
   title: "لوحة شمس الوطن",
-  subtitle: "مسابقة الرياضيات · الصف الأول الثانوي",
+  subtitle: "مسابقة مدرسة شمس الوطن",
   categories: [
     { name: "الأعداد والجذور", qs: [
       { q: "ما قيمة `√49 + √16` ؟", choices: ["11", "13", "9", "65"], correct: 0 },
@@ -447,7 +463,8 @@ function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function 
 function rich(s) { return esc(s).replace(/`([^`]+)`/g, '<span class="math">$1</span>'); }
 function later(fn, ms) { return setTimeout(fn, ms); }
 
-var data = sget(KD) || clone(SAMPLE);
+var data = sget(KD) || (window.SHAMS_PRESET ? clone(window.SHAMS_PRESET) : clone(SAMPLE));
+function isSample() { return JSON.stringify(data.categories) === JSON.stringify(SAMPLE.categories); }
 var G = null;   // game state
 var Q = null;   // current question
 
@@ -611,6 +628,7 @@ function save() { if (G) sset(KG, G); }
 /* ---------------- intro ---------------- */
 function renderIntro() {
   $("#introTitle").textContent = data.title; $("#introSub").textContent = data.subtitle;
+  $("#sampleNote").hidden = !isSample();
   var prev = sget(KG);
   $("#goResume").hidden = !(prev && prev.teams && prev.used && Object.keys(prev.used).length && Object.keys(prev.used).length < 25);
   show("intro");
@@ -618,6 +636,41 @@ function renderIntro() {
 $("#goSetup").onclick = function () { audio(); SFX.whoosh(); renderSetup(); };
 $("#goResume").onclick = function () { audio(); G = sget(KG); SFX.intro(); enterBoard(true); };
 $("#goEditor").onclick = function () { openEditor(); };
+$("#goSave").onclick = function () { SFX.tap(); openSave(); };
+
+/* ---------------- keep the app: install + download ---------------- */
+var installEvt = null;
+window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); installEvt = e; });
+var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+var STANDALONE = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+function openSave() {
+  var m = $("#menu");
+  var installHtml = STANDALONE ? '<p>✅ اللعبة مثبتة على هذا الجهاز كتطبيق.</p>' : IOS ?
+    '<ol><li>افتحي الرابط في <b>Safari</b></li><li>اضغطي زر المشاركة <b>⬆️</b></li><li>اختاري <b>«إضافة إلى الشاشة الرئيسية»</b></li></ol>' :
+    '<p>تطلع أيقونة اللعبة على الشاشة، وتفتح كتطبيق حتى <b>بدون إنترنت</b>.</p><button class="btn gold sm" id="doInstall">تثبيت التطبيق</button>';
+  m.innerHTML = '<div class="menu-box"><h3>حفظ التطبيق على جهازك</h3><div class="save-opts">' +
+    '<div class="save-opt"><h4>📱 أيقونة على الشاشة</h4>' + installHtml + '<small>تشتغل بدون إنترنت بعد أول فتح، وأسئلتك تبقى محفوظة.</small></div>' +
+    '<div class="save-opt"><h4>📁 نسخة في ملفاتي</h4><p>ملف واحد فيه اللعبة <b>وأسئلتك الحالية</b>، تحتفظي بيه أو تبعتيه لزميلة.</p><small>افتحي الملف بمتصفح Chrome أو Safari، مش من معاينة الملفات.</small><button class="btn gold sm" id="doDownload">تحميل النسخة</button></div>' +
+    '</div><div class="menu-actions"><button class="btn dark sm" id="mClose">إغلاق</button></div></div>';
+  m.hidden = false;
+}
+function saveBlob(blob, name) {
+  var url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = name; a.rel = "noopener"; document.body.appendChild(a); a.click();
+  later(function () { URL.revokeObjectURL(url); if (a.parentNode) a.parentNode.removeChild(a); }, 4000);
+}
+function downloadApp() {
+  if (!window.fetch || location.protocol === "file:") { toast("التحميل يشتغل من رابط الموقع"); return; }
+  fetch(location.href.split("#")[0], { cache: "no-cache" }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (html) {
+    var preset = "<scr" + "ipt>window.SHAMS_PRESET=" + JSON.stringify(data).replace(/</g, "\\u003c") + ";</scr" + "ipt>\n";
+    html = html.replace(/<script>window\.SHAMS_PRESET=\{[\s\S]*?\};<\/script>\n/, "");
+    var at = html.indexOf("<script>\n(function () {");
+    if (at < 0) throw 0;
+    html = html.slice(0, at) + preset + html.slice(at);
+    saveBlob(new Blob([html], { type: "text/html;charset=utf-8" }), "shams-board.html");
+    toast("تم تحميل النسخة في ملفاتك");
+  }).catch(function () { toast("تعذر التحميل، تأكدي من الإنترنت"); });
+}
 
 /* ---------------- setup ---------------- */
 var setupOpts = { timer: 30, steal: true };
@@ -983,9 +1036,15 @@ function openMenu() {
 }
 $("#menu").addEventListener("click", function (e) {
   var b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.a != null) { var i = +b.dataset.a; G.teams[i].score += +b.dataset.d; save(); $("#ms" + i).textContent = G.teams[i].score; SFX.tap(); renderPods(); return; }
+  if (b.dataset.a != null && G) { var i = +b.dataset.a; G.teams[i].score += +b.dataset.d; save(); $("#ms" + i).textContent = G.teams[i].score; SFX.tap(); renderPods(); return; }
   var m = $("#menu");
   if (b.id === "mClose") { m.hidden = true; }
+  if (b.id === "doDownload") { downloadApp(); return; }
+  if (b.id === "doInstall") {
+    if (installEvt) { installEvt.prompt(); installEvt = null; }
+    else toast("من قائمة المتصفح ⋮ اختاري «تثبيت التطبيق»");
+    return;
+  }
   if (b.id === "mWin") { m.hidden = true; showWinner(); }
   if (b.id === "mEdit") { m.hidden = true; openEditor(); }
   if (b.id === "mHome") { m.hidden = true; renderIntro(); }
@@ -999,6 +1058,7 @@ function paintEditor() {
   $("#editor").innerHTML = '<div class="ed" dir="rtl">' +
     '<h2>تعديل الأسئلة</h2>' +
     '<p class="note">لكل سؤال اكتبي النص والخيارات الأربعة، واختاري الدائرة اللي جنب <b>الإجابة الصحيحة</b>. لو تبي سؤال بدون خيارات، خلي الخيارات فاضية واكتبي الإجابة في خانة «الإجابة»، والمعلمة تحكم بزر صح أو غلط. حطي المعادلات بين علامتي <code>`</code> مثل: <code>حل `2x + 4 = 10`</code></p>' +
+    (JSON.stringify(draft.categories) === JSON.stringify(SAMPLE.categories) ? '<p class="note" style="color:var(--gold)">الأسئلة الموجودة أمثلة من الرياضيات توضّح الطريقة. بدّليها بأسئلة أي مادة أو مستوى، وبدّلي أسماء المحاور زادة.</p>' : '') +
     '<div class="ed-grid"><label class="fld">عنوان المسابقة<input id="eTitle" value="' + esc(draft.title) + '"></label><label class="fld">العنوان الفرعي<input id="eSub" value="' + esc(draft.subtitle) + '"></label></div>' +
     '<div class="tabs" role="tablist">' + draft.categories.map(function (c, i) { return '<button role="tab" data-tab="' + i + '" aria-selected="' + (i === edCat) + '">' + esc(c.name || "محور " + (i + 1)) + '</button>'; }).join("") + '</div>' +
     '<label class="fld">اسم المحور<input id="eCat" value="' + esc(cat.name) + '"></label>' +
@@ -1011,7 +1071,9 @@ function paintEditor() {
         }).join("") + '</div>' +
         '<label class="fld">الإجابة (للأسئلة بدون خيارات)<input id="eA' + r + '" value="' + esc(q.answer || "") + '"></label></div>';
     }).join("") +
-    '<details><summary>نقل الأسئلة لجهاز آخر</summary><p class="note">اضغطي «نسخ الأسئلة» وابعتي النص لنفسك، وفي الجهاز الثاني الصقيه هنا واضغطي «استيراد».</p><textarea id="eJson" rows="5" dir="ltr" style="width:100%"></textarea><div style="display:flex;gap:10px;margin-top:10px"><button class="ebtn" id="eCopy">نسخ الأسئلة</button><button class="ebtn" id="eImport">استيراد</button></div></details>' +
+    '<div class="ed-grid" style="align-items:center"><button class="ebtn" id="eFileSave">📁 حفظ الأسئلة في ملف</button><label class="ebtn" style="text-align:center;cursor:pointer">📂 فتح ملف أسئلة<input type="file" id="eFile" accept=".json,application/json,text/plain" hidden></label></div>' +
+    '<p class="note">احفظي كل مجموعة أسئلة في ملف (مثلاً: علوم الصف الثالث)، وافتحيها وقت ما تحتاجيها.</p>' +
+    '<details><summary>نقل الأسئلة بالنسخ واللصق</summary><p class="note">اضغطي «نسخ الأسئلة» وابعتي النص لنفسك، وفي الجهاز الثاني الصقيه هنا واضغطي «استيراد».</p><textarea id="eJson" rows="5" dir="ltr" style="width:100%"></textarea><div style="display:flex;gap:10px;margin-top:10px"><button class="ebtn" id="eCopy">نسخ الأسئلة</button><button class="ebtn" id="eImport">استيراد</button></div></details>' +
     '<div class="edbar"><button class="ebtn gold" id="eSave">حفظ الأسئلة</button><button class="ebtn" id="eClose">إغلاق بدون حفظ</button><span style="flex:1"></span><button class="ebtn" id="eReset">' + (resetArmed ? "متأكدة؟ اضغطي مرة ثانية" : "استرجاع الأسئلة التجريبية") + '</button></div>' +
   '</div>';
 }
@@ -1050,6 +1112,11 @@ $("#editor").addEventListener("click", function (e) {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(ok, no); else no();
     return;
   }
+  if (b.id === "eFileSave") {
+    collect();
+    saveBlob(new Blob([JSON.stringify(draft, null, 1)], { type: "application/json" }), "shams-questions-" + new Date().toISOString().slice(0, 10) + ".json");
+    etoast("تم حفظ ملف الأسئلة في ملفاتك"); return;
+  }
   if (b.id === "eImport") {
     try {
       var d = JSON.parse($("#eJson").value);
@@ -1059,7 +1126,19 @@ $("#editor").addEventListener("click", function (e) {
   }
 });
 
+function validData(d) { return d && d.categories && d.categories.length === 5 && !d.categories.some(function (c) { return !c.qs || c.qs.length !== 5; }); }
+$("#editor").addEventListener("change", function (e) {
+  if (e.target.id !== "eFile" || !e.target.files || !e.target.files[0]) return;
+  var fr = new FileReader();
+  fr.onload = function () {
+    try { var d = JSON.parse(fr.result); if (!validData(d)) throw 0; draft = d; edCat = 0; paintEditor(); etoast("انفتح ملف الأسئلة، اضغطي «حفظ الأسئلة»"); }
+    catch (er) { etoast("هذا الملف مش ملف أسئلة صحيح"); }
+  };
+  fr.readAsText(e.target.files[0]);
+});
+
 /* ---------------- boot ---------------- */
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) { try { navigator.serviceWorker.register("sw.js"); } catch (e) {} }
 renderIntro();
 })();
 </script>

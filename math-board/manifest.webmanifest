@@ -1,0 +1,19 @@
+{
+  "name": "لوحة شمس الوطن — مسابقة الفرق",
+  "short_name": "لوحة شمس",
+  "description": "مسابقة صفية بالفرق من مدرسة شمس الوطن، لأي مادة وأي مستوى",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#070f24",
+  "theme_color": "#070f24",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
