@@ -153,6 +153,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .tile:disabled .v { display: none; }
 .tile .won { display: none; }
 .tile:disabled .won { display: flex; position: absolute; top: 0; right: 0; bottom: 0; left: 0; align-items: center; justify-content: center; gap: 10px; font-size: 22px; font-weight: 800; color: var(--muted); }
+.tile.locked { opacity: .28; background: linear-gradient(180deg, var(--glass-hi), var(--glass) 55%, #133a72); }
+.tile.locked .v { display: inline; }
 .tile:disabled .won i { width: 26px; height: 26px; border-radius: 50%; background: var(--wc, rgba(255,255,255,.15)); box-shadow: 0 0 16px var(--wc, transparent); }
 
 .pods { height: 150px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; padding: 0 36px 22px; }
@@ -434,7 +436,7 @@ var SAMPLE = {
 };
 
 /* ---------------- helpers ---------------- */
-var KD = "shams-board-v2-data", KG = "shams-board-v2-game";
+var KD = "shams-board-v2-data", KG = "shams-board-v3-game";
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function sget(k) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
 function sset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -641,12 +643,12 @@ $("#toRules").onclick = function () { SFX.whoosh(); renderRules(); };
 function renderRules() {
   var t = setupOpts.timer;
   var R = [
-    ["🔁", "الفرق تلعب <b>بالدور</b>: الأحمر ← الأصفر ← الأخضر ← الأزرق. الفريق صاحب الدور يختار <b>المحور والنقاط</b>."],
+    ["⚖️", "المسابقة <b>5 جولات</b>: 100 ثم 200 ثم 300 ثم 400 ثم 500. في كل جولة <b>كل فريق ياخذ سؤال واحد بنفس النقاط</b>، والفريق اللي يبدأ يتبدل كل جولة."],
     ["⏱️", "عند الفريق <b>" + t + " ثانية</b> يتشاوروا، وبعدين قائد الفريق يلمس الإجابة ويضغط <b>«تأكيد»</b>."],
     ["✅", "الإجابة الصحيحة تاخذ <b>نقاط السؤال كاملة</b>، والخاطئة ما تنقصش من النقاط."],
     setupOpts.steal ? ["⚡", "لو غلطوا أو خلص الوقت: <b>فرصة السرقة!</b> أول فريق يرفع يده يجاوب وياخذ <b>نص النقاط</b>."] : ["🤫", "لو غلط الفريق أو خلص الوقت، تنكشف الإجابة الصحيحة ونكمّلوا."],
     ["🛟", "لكل فريق <b>وسيلتين مساعدة</b> مرة وحدة بس: <b>حذف إجابتين</b> و <b>+15 ثانية</b>."],
-    ["☀️", "في اللوحة <b>سؤال الشمس الذهبي</b> مخفي: نقاطه <b>مضاعفة ×2</b>. والفريق اللي يجمع أكثر نقاط يفوز!"]
+    ["✋", "السؤال الخامس في كل جولة <b>للجميع</b>: أول فريق يرفع يده يجاوب. وآخر سؤال هو <b>سؤال الشمس الذهبي ×2</b>!"]
   ];
   $("#rulesList").innerHTML = R.map(function (r, i) { return '<li style="animation-delay:' + (i * .12) + 's"><span class="ic">' + r[0] + '</span><span>' + r[1] + '</span></li>'; }).join("");
   show("rules");
@@ -656,8 +658,7 @@ $("#startGame").onclick = function () {
   var names = [0, 1, 2, 3].map(function (i) { var v = $("#tn" + i) ? $("#tn" + i).value.trim() : ""; return v || DEF_NAMES[i]; });
   G = {
     teams: names.map(function (n) { return { name: n, score: 0, fifty: true, extra: true }; }),
-    used: {}, turn: 0, settings: clone(setupOpts),
-    golden: Math.floor(Math.random() * 5) + "-" + (2 + Math.floor(Math.random() * 3))
+    used: {}, turn: 0, settings: clone(setupOpts)
   };
   save(); SFX.intro(); confetti(140, null, "sides"); enterBoard(false);
 };
@@ -667,20 +668,28 @@ function enterBoard(resume) {
   show("board"); renderBoard(true);
   later(function () { announceTurn(); }, resume ? 900 : 1500);
 }
+// Fair play: 5 rounds, one per value. In each round every team picks exactly one
+// question of that value, the starting team rotates, and the 5th question is open to all.
+function roundInfo() {
+  for (var r = 0; r < 5; r++) { var n = 0; for (var c = 0; c < 5; c++) if (G.used[c + "-" + r] != null) n++; if (n < 5) return { r: r, n: n }; }
+  return null;
+}
+function syncTurn() { var ri = roundInfo(); G.turn = !ri ? -1 : (ri.n < 4 ? (ri.r + ri.n) % 4 : -1); return ri; }
 function renderBoard(animate) {
+  var ri = syncTurn();
   $("#bTitle").textContent = data.title; $("#bSub").textContent = data.subtitle;
   $("#bSound").innerHTML = muted ? SOUND_OFF : SOUND_ON;
   var done = Object.keys(G.used).length;
-  $("#progTxt").textContent = done >= 25 ? "انتهت الأسئلة" : "السؤال " + (done + 1) + " من 25";
+  $("#progTxt").textContent = !ri ? "انتهت الأسئلة" : "الجولة " + (ri.r + 1) + " من 5 · أسئلة " + VALUES[ri.r];
   $("#progBar").style.width = (done / 25 * 100) + "%";
   var h = data.categories.map(function (c) { return '<div class="cat">' + esc(c.name) + '</div>'; }).join("");
   for (var r = 0; r < 5; r++) for (var c = 0; c < 5; c++) {
-    var k = c + "-" + r, u = G.used[k], dis = u != null;
-    var won = dis ? (u >= 0 ? '<span class="won" style="--wc:' + TEAM_HEX[u] + '"><i></i>' + esc(G.teams[u].name) + '</span>' : '<span class="won"><i></i>بدون نقاط</span>') : "";
-    h += '<button class="tile" data-k="' + k + '"' + (dis ? " disabled" : "") + ' style="--d:' + ((c + r) * .3) + 's;' + (animate ? "animation-delay:" + ((r * 5 + c) * .03) + "s" : "animation:none") + '" aria-label="' + esc(data.categories[c].name) + " " + VALUES[r] + '"><span class="v">' + VALUES[r] + '</span>' + won + '</button>';
+    var k = c + "-" + r, u = G.used[k], lock = u == null && (!ri || r !== ri.r), dis = u != null || lock;
+    var won = u != null ? (u >= 0 ? '<span class="won" style="--wc:' + TEAM_HEX[u] + '"><i></i>' + esc(G.teams[u].name) + '</span>' : '<span class="won"><i></i>بدون نقاط</span>') : "";
+    h += '<button class="tile' + (lock ? " locked" : "") + '" data-k="' + k + '"' + (dis ? " disabled" : "") + ' style="--d:' + ((c + r) * .3) + 's;' + (animate ? "animation-delay:" + ((r * 5 + c) * .03) + "s" : "animation:none") + '" aria-label="' + esc(data.categories[c].name) + " " + VALUES[r] + '"><span class="v">' + VALUES[r] + '</span>' + won + '</button>';
   }
   var grid = $("#grid"); grid.innerHTML = h;
-  grid.style.setProperty("--turn", TEAM_HEX[G.turn]);
+  grid.style.setProperty("--turn", G.turn >= 0 ? TEAM_HEX[G.turn] : "#ffd36b");
   renderPods();
 }
 function leaderIdx() {
@@ -700,9 +709,11 @@ function renderPods(popIdx) {
   }).join("");
 }
 function announceTurn() {
-  if (Object.keys(G.used).length >= 25) { showWinner(); return; }
-  var t = G.teams[G.turn], b = $("#banner");
-  b.innerHTML = '<div class="strip" style="--c:' + TEAM_HEX[G.turn] + '"><b>دور ' + esc(t.name) + '</b><span>اختاروا المحور والنقاط</span></div>';
+  var ri = syncTurn();
+  if (!ri) { showWinner(); return; }
+  var b = $("#banner"), rd = "الجولة " + (ri.r + 1) + " · ";
+  if (G.turn >= 0) b.innerHTML = '<div class="strip" style="--c:' + TEAM_HEX[G.turn] + '"><b>دور ' + esc(G.teams[G.turn].name) + '</b><span>' + rd + 'اختاروا سؤال ' + VALUES[ri.r] + '</span></div>';
+  else b.innerHTML = '<div class="strip" style="--c:#e08a1e"><b>' + (ri.r === 4 ? "☀ سؤال الشمس الذهبي للجميع!" : "سؤال للجميع!") + '</b><span>' + rd + 'أول فريق يرفع يده يجاوب' + (ri.r === 4 ? " · النقاط ×2" : "") + '</span></div>';
   b.hidden = false; SFX.turn();
   $("#grid").classList.add("pick");
   later(function () { b.hidden = true; }, 1900);
@@ -747,7 +758,7 @@ function openQuestion(k) {
   var cr = k.split("-").map(Number), item = data.categories[cr[0]].qs[cr[1]];
   var choices = (item.choices || []).map(function (s) { return String(s || "").trim(); });
   var hasChoices = choices.filter(Boolean).length >= 2 && item.correct >= 0 && choices[item.correct];
-  Q = { k: k, c: cr[0], r: cr[1], item: item, choices: choices, mc: !!hasChoices, gold: k === G.golden, team: G.turn, sel: -1, gone: [], phase: "answer", stealing: false };
+  Q = { k: k, c: cr[0], r: cr[1], item: item, choices: choices, mc: !!hasChoices, gold: G.turn < 0 && cr[1] === 4, team: G.turn, sel: -1, gone: [], phase: "answer", stealing: false };
   $("#grid").classList.remove("pick");
   SFX.select();
   var tile = $('.tile[data-k="' + k + '"]'); if (tile) tile.style.transform = "scale(1.08)";
@@ -763,12 +774,13 @@ function openQuestion(k) {
 function pts() { return VALUES[Q.r] * (Q.gold ? 2 : 1); }
 function renderQuestion() {
   var t = G.teams[Q.team], qv = $("#qv"), C = (2 * Math.PI * 52).toFixed(1);
+  var whoHtml = Q.team < 0 ? '<span class="who" id="who" style="--c:#e08a1e">✋ سؤال للجميع</span>' : '<span class="who" id="who" style="--c:' + TEAM_HEX[Q.team] + '">يجاوب: ' + esc(t.name) + '</span>';
   qv.innerHTML =
     '<div class="qtop">' +
       '<span class="chip">' + esc(data.categories[Q.c].name) + '</span>' +
       '<span class="val">' + pts() + '</span>' + (Q.gold ? '<span class="gold">☀ سؤال ذهبي ×2</span>' : "") +
       '<span class="sp"></span>' +
-      '<span class="who" id="who" style="--c:' + TEAM_HEX[Q.team] + '">يجاوب: ' + esc(t.name) + '</span>' +
+      whoHtml +
       '<div class="clock" id="clock"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52"/><circle class="fg" cx="60" cy="60" r="52" stroke-dasharray="' + C + '" stroke-dashoffset="0"/></svg><b></b></div>' +
     '</div>' +
     '<div class="qbox' + (Q.gold ? " golden" : "") + '"><div>' + rich(Q.item.q) + '</div></div>' +
@@ -782,7 +794,14 @@ function renderQuestion() {
 }
 function setBar(html) { $("#qbar").innerHTML = html; }
 function startAnswer() {
-  Q.phase = "answer"; Q.sel = -1;
+  Q.sel = -1;
+  if (Q.team < 0) {
+    Q.phase = "buzz"; startThink(); runTimer(G.settings.timer || 30, onTimeUp);
+    setBar('<span class="msg" style="color:var(--gold)">✋ أول فريق يرفع يده:</span><span class="sp"></span><div class="steal">' +
+      G.teams.map(function (t, i) { return '<button class="tb" data-buzz="' + i + '" style="--c:' + TEAM_HEX[i] + '">' + esc(t.name) + '</button>'; }).join("") + '</div>');
+    return;
+  }
+  Q.phase = "answer";
   paintAnswerBar();
   startThink();
   runTimer(Q.stealing ? 15 : (G.settings.timer || 30), onTimeUp);
@@ -823,6 +842,7 @@ $("#qv").addEventListener("click", function (e) {
     case "next": closeQuestion(); break;
     default:
       if (b.dataset.steal != null) beginSteal(+b.dataset.steal);
+      if (b.dataset.buzz != null) beginBuzz(+b.dataset.buzz);
   }
 });
 function useFifty() {
@@ -855,6 +875,7 @@ function onTimeUp() {
 }
 function afterWrong() {
   Q.phase = "wrong";
+  if (Q.team < 0) { revealAndFinish(); return; }
   var canSteal = G.settings.steal && !Q.stealing && (!Q.mc || Q.choices.filter(function (c, i) { return c && Q.gone.indexOf(i) < 0; }).length > 1);
   if (!canSteal) { later(function () { revealAndFinish(false); }, 900); return; }
   later(function () {
@@ -863,6 +884,12 @@ function afterWrong() {
       G.teams.map(function (t, i) { return i === Q.team ? "" : '<button class="tb" data-steal="' + i + '" style="--c:' + TEAM_HEX[i] + '">' + esc(t.name) + '</button>'; }).join("") +
       '<button class="btn dark sm" id="noSteal">ولا فريق</button></div>');
   }, 900);
+}
+function beginBuzz(i) {
+  Q.team = i; Q.phase = "answer"; SFX.turn();
+  var who = $("#who"); who.style.setProperty("--c", TEAM_HEX[i]); who.textContent = "يجاوب: " + G.teams[i].name;
+  $$(".ch").forEach(function (x) { x.style.setProperty("--c", TEAM_HEX[i]); });
+  paintAnswerBar();
 }
 function beginSteal(i) {
   Q.stealing = true; Q.team = i; SFX.turn();
@@ -907,7 +934,7 @@ function flyPoints(txt, ti) {
 function closeQuestion() {
   stopTimer(); stopThink();
   var winner = G.used[Q.k];
-  G.turn = (G.turn + 1) % 4; save();
+  save();
   $("#qv").hidden = true; $("#qv").innerHTML = ""; Q = null;
   renderBoard(false);
   if (winner >= 0) { renderPods(winner); SFX.points(); }
@@ -949,7 +976,6 @@ function openMenu() {
     '<div class="menu-actions">' +
       '<button class="btn gold sm" id="mClose">رجوع للمسابقة</button>' +
       '<button class="btn sm" id="mWin">🏆 إعلان النتيجة الآن</button>' +
-      '<button class="btn dark sm" id="mSkip">تخطي دور الفريق</button>' +
       '<button class="btn dark sm" id="mEdit">تعديل الأسئلة</button>' +
       '<button class="btn dark sm" id="mHome">الشاشة الرئيسية</button>' +
     '</div></div>';
@@ -961,7 +987,6 @@ $("#menu").addEventListener("click", function (e) {
   var m = $("#menu");
   if (b.id === "mClose") { m.hidden = true; }
   if (b.id === "mWin") { m.hidden = true; showWinner(); }
-  if (b.id === "mSkip") { m.hidden = true; G.turn = (G.turn + 1) % 4; save(); renderBoard(false); announceTurn(); }
   if (b.id === "mEdit") { m.hidden = true; openEditor(); }
   if (b.id === "mHome") { m.hidden = true; renderIntro(); }
 });
