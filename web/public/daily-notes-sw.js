@@ -1,5 +1,5 @@
 // تطبيق الملاحظات اليومية يعمل بدون إنترنت بعد أول فتح
-const CACHE = 'shams-daily-notes-v2';
+const CACHE = 'shams-daily-notes-v3';
 const BASE = new URL('./', self.location).href;
 const PAGE = new URL('daily-notes.html', BASE).href;
 const CORE = [
@@ -30,7 +30,8 @@ self.addEventListener('fetch', (e) => {
   const clean = url.origin + url.pathname;
   const isPage = clean === PAGE;
   const isOwn = CORE.includes(clean);
-  const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
+  const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com' ||
+    (url.hostname === 'cdnjs.cloudflare.com' && url.pathname.indexOf('/jspdf/') !== -1);
   if (!isOwn && !isFont) return; // باقي النظام لا يمر من هنا
 
   if (isPage) {
