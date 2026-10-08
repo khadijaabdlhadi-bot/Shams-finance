@@ -294,8 +294,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .etoast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); z-index: 95; background: var(--gold); color: var(--ink); font: 800 18px var(--display); padding: 10px 22px; border-radius: 999px; }
 @media (max-width: 700px) { .edch { grid-template-columns: minmax(0, 1fr); } }
 
-#rotate { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 70; display: none; place-items: center; text-align: center; padding: 24px; background: #070f24; font: 800 22px var(--display); line-height: 1.8; }
-@media (orientation: portrait) and (max-width: 900px) { #rotate { display: grid; } }
+#rotate { position: fixed; top: 12px; right: 12px; left: 12px; z-index: 70; display: none; text-align: center; padding: 10px 14px; border-radius: 14px; background: #ffd36b; color: #0a1226; font: 800 16px var(--display); line-height: 1.6; pointer-events: none; }
+@media (orientation: portrait) and (max-width: 900px) { #rotate { display: block; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
@@ -374,7 +374,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 </div>
 
 <div id="editor" hidden></div>
-<div id="rotate">لفّي الجهاز بالعرض باش تظهر اللوحة كاملة ↻</div>
+<div id="rotate">للعرض الأفضل لفّي الهاتف بالعرض ↻</div>
 <canvas id="fx"></canvas>
 
 <script>
