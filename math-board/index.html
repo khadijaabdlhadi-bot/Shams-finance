@@ -740,32 +740,55 @@ window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault()
 var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 var STANDALONE = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 function openSave() {
+  prefetchSource();
   var m = $("#menu");
   var installHtml = STANDALONE ? '<p>✅ اللعبة مثبتة على هذا الجهاز كتطبيق.</p>' : IOS ?
     '<ol><li>افتحي الرابط في <b>Safari</b></li><li>اضغطي زر المشاركة <b>⬆️</b></li><li>اختاري <b>«إضافة إلى الشاشة الرئيسية»</b></li></ol>' :
     '<p>تطلع أيقونة اللعبة على الشاشة، وتفتح كتطبيق حتى <b>بدون إنترنت</b>.</p><button class="btn gold sm" id="doInstall">تثبيت التطبيق</button>';
   m.innerHTML = '<div class="menu-box"><h3>حفظ التطبيق على جهازك</h3><div class="save-opts">' +
     '<div class="save-opt"><h4>📱 أيقونة على الشاشة</h4>' + installHtml + '<small>تشتغل بدون إنترنت بعد أول فتح، وأسئلتك تبقى محفوظة.</small></div>' +
-    '<div class="save-opt"><h4>📁 نسخة في ملفاتي</h4><p>ملف واحد فيه اللعبة <b>وأسئلتك الحالية</b>، تحتفظي بيه أو تبعتيه لزميلة.</p><small>افتحي الملف بمتصفح Chrome أو Safari، مش من معاينة الملفات.</small><button class="btn gold sm" id="doDownload">تحميل النسخة</button></div>' +
+    '<div class="save-opt"><h4>📁 نسخة في ملفاتي</h4><p>ملف واحد فيه اللعبة <b>وأسئلتك الحالية</b>، تحتفظي بيه أو تبعتيه لزميلة.</p><small>' + (IOS ? 'بعد الضغط تطلع قائمة المشاركة: اختاري <b>«حفظ في الملفات»</b> 📁' : MOBILE ? 'بعد الضغط اختاري مكان الحفظ (الملفات أو Drive).' : 'تنزل في مجلد التنزيلات.') + ' افتحي الملف بعدين بمتصفح Chrome أو Safari.</small><button class="btn gold sm" id="doDownload">' + (MOBILE ? "حفظ في ملفاتي" : "تحميل النسخة") + '</button></div>' +
     '</div><div class="menu-actions"><button class="btn dark sm" id="mClose">إغلاق</button></div></div>';
   m.hidden = false;
 }
-function saveBlob(blob, name) {
-  var url = URL.createObjectURL(blob), a = document.createElement("a");
+// Saving a file: on phones/tablets use the share sheet ("Save to Files" on iPhone/iPad,
+// "Save to device"/Drive on Android) because Safari often ignores plain downloads.
+// It must run inside the tap, so the app source is fetched ahead of time.
+var MOBILE = IOS || /Android/i.test(navigator.userAgent);
+function saveFile(text, name, mime, say) {
+  var file = null;
+  try { file = new File([text], name, { type: mime }); } catch (e) {}
+  if (file && MOBILE && navigator.share && navigator.canShare) {
+    var ok = false; try { ok = navigator.canShare({ files: [file] }); } catch (e) {}
+    if (ok) {
+      navigator.share({ files: [file], title: name }).then(function () { say("تم الحفظ ✅"); }, function (err) {
+        if (err && err.name === "AbortError") return;
+        downloadFile(text, name); say("تم التحميل في ملفاتك (التنزيلات)");
+      });
+      return;
+    }
+  }
+  downloadFile(text, name); say("تم التحميل في ملفاتك (التنزيلات)");
+}
+function downloadFile(text, name) {
+  var url = URL.createObjectURL(new Blob([text], { type: "application/octet-stream" })), a = document.createElement("a");
   a.href = url; a.download = name; a.rel = "noopener"; document.body.appendChild(a); a.click();
   later(function () { URL.revokeObjectURL(url); if (a.parentNode) a.parentNode.removeChild(a); }, 4000);
 }
+var appSource = null;
+function prefetchSource() {
+  if (appSource || !window.fetch || location.protocol === "file:") return;
+  fetch(location.href.split("#")[0], { cache: "no-cache" }).then(function (r) { if (r.ok) return r.text(); }).then(function (t) {
+    if (t && t.indexOf("<script>\n(function () {") >= 0) appSource = t;
+  }).catch(function () {});
+}
 function downloadApp() {
-  if (!window.fetch || location.protocol === "file:") { toast("التحميل يشتغل من رابط الموقع"); return; }
-  fetch(location.href.split("#")[0], { cache: "no-cache" }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (html) {
-    var preset = "<scr" + "ipt>window.SHAMS_PRESET=" + JSON.stringify(data).replace(/</g, "\\u003c") + ";</scr" + "ipt>\n";
-    html = html.replace(/<script>window\.SHAMS_PRESET=\{[\s\S]*?\};<\/script>\n/, "");
-    var at = html.indexOf("<script>\n(function () {");
-    if (at < 0) throw 0;
-    html = html.slice(0, at) + preset + html.slice(at);
-    saveBlob(new Blob([html], { type: "text/html;charset=utf-8" }), "shams-board.html");
-    toast("تم تحميل النسخة في ملفاتك");
-  }).catch(function () { toast("تعذر التحميل، تأكدي من الإنترنت"); });
+  if (!appSource) { prefetchSource(); toast(location.protocol === "file:" ? "التحميل يشتغل من رابط الموقع" : "لحظة... جاري التجهيز، اضغطي مرة ثانية"); return; }
+  var html = appSource.replace(/<script>window\.SHAMS_PRESET=\{[\s\S]*?\};<\/script>\n/, "");
+  var preset = "<scr" + "ipt>window.SHAMS_PRESET=" + JSON.stringify(data).replace(/</g, "\\u003c") + ";</scr" + "ipt>\n";
+  var at = html.indexOf("<script>\n(function () {");
+  html = html.slice(0, at) + preset + html.slice(at);
+  saveFile(html, "shams-board.html", "text/html", toast);
 }
 
 /* ---------------- setup ---------------- */
@@ -1168,7 +1191,7 @@ function paintEditor() {
         '<label class="fld">الإجابة (للأسئلة بدون خيارات)<input id="eA' + r + '" value="' + esc(q.answer || "") + '"></label></div>';
     }).join("") +
     '<div class="ed-grid" style="align-items:center"><button class="ebtn" id="eFileSave">📁 حفظ الأسئلة في ملف</button><label class="ebtn" style="text-align:center;cursor:pointer">📂 فتح ملف أسئلة<input type="file" id="eFile" accept=".json,application/json,text/plain" hidden></label></div>' +
-    '<p class="note">احفظي كل مجموعة أسئلة في ملف (مثلاً: علوم الصف الثالث)، وافتحيها وقت ما تحتاجيها.</p>' +
+    '<p class="note">احفظي كل مجموعة أسئلة في ملف (مثلاً: علوم الصف الثالث)، وافتحيها وقت ما تحتاجيها.' + (IOS ? ' في الآيباد والآيفون تطلع قائمة المشاركة: اختاري <b>«حفظ في الملفات»</b>.' : '') + '</p>' +
     '<details><summary>نقل الأسئلة بالنسخ واللصق</summary><p class="note">اضغطي «نسخ الأسئلة» وابعتي النص لنفسك، وفي الجهاز الثاني الصقيه هنا واضغطي «استيراد».</p><textarea id="eJson" rows="5" dir="ltr" style="width:100%"></textarea><div style="display:flex;gap:10px;margin-top:10px"><button class="ebtn" id="eCopy">نسخ الأسئلة</button><button class="ebtn" id="eImport">استيراد</button></div></details>' +
     '<div class="edbar"><button class="ebtn gold" id="eSave">حفظ الأسئلة</button><button class="ebtn" id="eClose">إغلاق بدون حفظ</button><span style="flex:1"></span><button class="ebtn" id="eReset">' + (resetArmed ? "متأكدة؟ اضغطي مرة ثانية" : "استرجاع الأسئلة التجريبية") + '</button></div>' +
   '</div>';
@@ -1210,8 +1233,7 @@ $("#editor").addEventListener("click", function (e) {
   }
   if (b.id === "eFileSave") {
     collect();
-    saveBlob(new Blob([JSON.stringify(draft, null, 1)], { type: "application/json" }), "shams-questions-" + new Date().toISOString().slice(0, 10) + ".json");
-    etoast("تم حفظ ملف الأسئلة في ملفاتك"); return;
+    saveFile(JSON.stringify(draft, null, 1), "shams-questions-" + new Date().toISOString().slice(0, 10) + ".json", "application/json", etoast); return;
   }
   if (b.id === "eImport") {
     try {
@@ -1234,6 +1256,7 @@ $("#editor").addEventListener("change", function (e) {
 });
 
 /* ---------------- boot ---------------- */
+later(prefetchSource, 2500);
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) { try { navigator.serviceWorker.register("sw.js"); } catch (e) {} }
 renderIntro();
 })();
